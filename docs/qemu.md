@@ -1,5 +1,24 @@
 # QEMU
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The independent 22-case readback separates 18 functional/expected-fault originals,
+one Timing diagnostic and three quiet candidate boots. Sources remain six at 455,
+twelve at 3bdc, one Network80eff and three quiet at 6a700fe1; 19 retained originals
+are not fresh executions. Full018 healthy/truncated originals pass 120 HTTP plus
+49 browser responses each and original guest cleanup. Runner exit, captured guest
+cleanup, host verification, intentional quota/quiet process stop and natural
+completion remain separate. Three additional baseline quiet boots provide the
+matched comparison. TCG remains incomplete under its unchanged 30-minute limit.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 For PR814, record the QEMU runner exit, guest completion and host verification
 separately. Smoke and Disk B encountered a QEMU/GLib invalid-handle warning
 before web readiness. The bounded host compatibility controls are recorded

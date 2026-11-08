@@ -1,6 +1,22 @@
 # NativeAOT NoStdLib Limits
 
-Current PR814 qualification is tracked in the
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The complete native review chain retains exact current image/object/maps,
+source closures, bounded stack/probe loops, mapped backing, ABI and ownership
+conditions. All 13 profiles preserve scoped M04 nonconsumption and four exact
+RET imports. These facts grant no general kernel GC/EH/BCL support. Kernel and
+application runtime responsibilities and exact C# 14/RC3 pins are unchanged.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+Historical PR814 qualification is tracked in the
 [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 Historical results below retain their original source, runtime, backend and
 launch settings.

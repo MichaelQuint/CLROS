@@ -1,5 +1,21 @@
 # CLROS Completion Gates
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+This is a finite performance/source evidence update. Numbered gate definitions
+and acceptance criteria are unchanged. The original consumers, current native
+proof chain, exact source map and matched quiet timing limits are in the step.
+No broader Gate14, cloud, production, writable, persistent or SQLite gate is closed.
+TCG remains incomplete under its unchanged 30-minute limit.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 The [PR814 candidate results](../work/rc3-whpx-qualification.md#candidate-results) track RC3 host, native and QEMU qualification separately from numbered gate acceptance. [Step1672](../done/step1672.md) records the released first-ten FAT32 read and Blazor scope. Sustained service, writes, persistence and SQLite retain their own acceptance requirements.
 
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.

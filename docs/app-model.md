@@ -1,5 +1,22 @@
 # App Model
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Complete original scalar/vector ranges still validate before accepted-prefix
+copy; user pointers are not retained. Legacy socket/epoll/vector originals and
+finite service/disk/browser/cancellation/cleanup consumers pass at their exact
+recorded sources. Readonly HTTP/Standalone Blazor and typed truncated-file fault
+behavior are qualified only within those finite profiles. Persistent logs/
+uploads, SQLite, restart recovery and sustained service remain unqualified.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 The PR824 performance candidate copies only the accepted bounded prefix of a
 socket send after validating its original ranges. It retains no user pointer:
 sendmsg first snapshots and validates all vectors, then copies the available

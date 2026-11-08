@@ -1,5 +1,22 @@
 # Repository Audit
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+All five implementation areas, focused controls, unfiltered Full, current native
+identity/actual layout review, affected original consumers and six-boot quiet
+comparison have independent receipts in the step. The final 19 retained/3 current
+original map preserves exact sources; later metadata is separate. Original
+failures and each bounded host correction remain documented. The release owns
+PR824 only; broader baseline, Gate14, production and PROD/DEV remain open.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 PR814's [release scope and results](../work/rc3-whpx-qualification.md#approved-closeout-scope) select qualified runtime `2e81ee3a` with documentation/metadata updates and an explicitly incomplete CLROS TCG report. The later `72784936` optimization and isolated decoder work are preserved outside the release. The steps below retain the results and failures from their respective commits.
 
 [Step1787](../done/step1787.md) binds the source35b Full/compiler29 originals and

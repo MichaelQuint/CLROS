@@ -1,5 +1,25 @@
 # Diagnostics
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+controls.v3 joins independent PCAP loss/delay/duplicate/reorder/partial/window/
+close observations to exact NIC counters. Retain strict ACK-flag/high-sequence,
+ignored stale-ACK and one-octet legacy persist controls. The unexplained Full4
+7936-byte allocation observation remains failed; the repaired exact-zero fixture
+requires bounded no-GC admission and a measured positive control. Quiet startup
+requires its exact marker and ordered Kestrel listener, rejects failure/tracing
+and rechecks stopped serial with unchanged 240-second readiness budget. Summary
+bodies/reports live under `requests`, owner receipts at the owner root. Functional
+originals, Timing and intentionally stopped quiet diagnostics keep distinct scope.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 [Step1787](../done/step1787.md) preserves a Hello original whose guest/runner pass
 but host model rejects an unentered ready signal child at exit_group. The scoped
 repair permits no invented user entry/resume/IRQ/drain, preserves ready-before-

@@ -1,5 +1,25 @@
 # Storage
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The explicitly selected readonly path uses one 4 KiB control page plus 8 KiB data,
+at most 16 verified contiguous sectors/request and one active physical request.
+Full/Timing/quiet reserve the complete 12 KiB extent in their 93-page arena. Legacy
+one-page/four-sector and writable 512-byte routes remain. Actual native review
+and healthy/truncated/lifecycle originals join corruption, cancellation, close/
+reuse and exact cleanup controls. DiskA1 has 3120 physical requests/32196 filesystem
+sectors; A2/B 3328/32404; Truncated 2981/32057, each with 37 bootstrap requests. The
+legacy `sectors=` consumer value is a copied-request delta. No file-content
+cache, speculative readahead, async disk pipeline or writable acceptance follows.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 PR824's [performance candidate](../work/http-performance-phase.md) adds explicit
 readonly large-read admission: one4KiB control page plus8KiB data, at most16
 sectors per physical request. The legacy one-page/four-sector layout and writable
@@ -17,7 +37,7 @@ comparison (local SHA256
 The SharpOS-specific grant/CC0 evidence is in [the license audit](license-audit.md).
 No reference implementation/native source or reference acceptance is imported.
 
-Current PR814 qualification is tracked in the
+Historical PR814 qualification is tracked in the
 [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 Historical results below retain their original source, runtime, backend and
 launch settings.

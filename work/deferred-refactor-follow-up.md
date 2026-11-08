@@ -1,5 +1,21 @@
 # Deferred refactor follow-up after PR814
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The preserved decoder and bounded adjacent disk-audit changes are integrated
+with the other four performance areas in PR824. The original packaging below
+granting no acceptance remains historical provenance. Final source, qualification,
+retained failures and delivery receipt are in the new step. Neither this release
+nor the shared decoder qualifies persistent logs/uploads or writable workloads.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 ## Status and scope
 
 This draft preserves existing changes excluded from PR814. Its base is verified

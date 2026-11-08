@@ -1,5 +1,23 @@
 # PR824 finite HTTP performance phase
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+All five slices and focused controls are integrated. The final Full/native/
+original/quiet evidence and source map are in the step; implementation checkpoints
+below retain their original pending status and failures. Runtime code remains
+cdab7536; host repairs end at 6a700fe1; later docs/tracker metadata is separate.
+The matched comparison measures the combined phase only. Delivery is tracked in
+the step's stable owned PR evidence comment, including actual canonical parity
+and recoverable archive receipt. Stop at that boundary.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 ## Authority and source
 
 The November 6, 2026 execution request resumes PR824 for five changes only:

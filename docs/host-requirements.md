@@ -1,5 +1,23 @@
 # Host Requirements
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Unfiltered Full passes 7,838 checks across 999 groups,
+6,552 inventory entries, unchanged inputs and zero reuse.
+The 112 Native-label groups include managed/synthetic work;
+they are not guest counts. Exact compiler inputs, 47 dependencies and immutable
+producers are joined in the step. The C# 14/.NET 11 RC3 SDK/runtime/ILC pins remain
+unchanged. Failed originals and the bounded allocation-counter repair remain
+recorded; complete solution build has four existing warnings and zero errors.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 The rebuilt, frozen RC3 candidate `2e81ee3a` passed 7,789 unfiltered Full
 checks with zero reuse. Source, captured inputs and all 48 producer binaries
 passed independent readback. The solution build succeeded with four compiler

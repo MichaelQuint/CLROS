@@ -1,5 +1,24 @@
 # PR824 validation preparation and impact map
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The planned impact matrix below has now been executed within the exact scopes
+in the step. Full passes 7,838 checks with unchanged inputs and zero
+reuse. Thirteen current native publications/reviews and the 19-retained/3-current
+original map are independent of metadata added later. Six independently booted quiet observations rehash
+528 bodies (one complete baseline original is retained) with first observations separate from ten warm sequences. The frozen
+recipe/hash and all failed originals remain preserved. Earlier preparation
+instructions below are the contract and history, not an outstanding instruction
+to rerun acceptance.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 Status: managed preparation implemented, not a frozen candidate or qualification result. The sole
 producer and finite scope are in [the phase contract](http-performance-phase.md).
 All five runtime slices have focused host evidence. The service packet-control

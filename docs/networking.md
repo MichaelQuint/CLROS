@@ -1,5 +1,27 @@
 # Networking
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Accepted-prefix copies still validate complete scalar/vector ranges and metadata
+before narrowing, including invalid tails. HPET remains required: only adjacent
+private observations are shared; callback/device/ownership boundaries sample
+afresh and independent lifetime/clock health remains. Explicit serving profiles
+use eight retained segment lengths, 32 KiB payload, initial/restart 1 MSS and bounded
+slow start/congestion avoidance/recovery/RTO/persist/FIN contracts. Submission
+commits only after copied-frame acceptance; round-robin new-data work stays
+bounded at eight frames/pump. Actual service wire controls cover delay/loss/
+duplicates/reorder/partial ACK/zero windows/concurrency/close. Wider #751 RTT,
+p99, CPU/memory and Nanos-baseline criteria remain open. Mechanism counts and
+combined quiet results supply no per-change guest speed attribution.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 PR824's [finite performance candidate](../work/http-performance-phase.md) bounds
 scalar send and sendmsg payload copies by available retained send-buffer space
 and descriptor scratch. Scalar admission validates the complete original offer,

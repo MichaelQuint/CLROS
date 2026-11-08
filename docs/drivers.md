@@ -1,5 +1,24 @@
 # Drivers
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Current exact native proofs account for complete 12 KiB readonly DMA allocation,
+authenticated mappings/address domains/descriptor lengths and reset/fence/scrub/
+release. The TCP retained ring and all affected legacy consumers also retain
+actual own-profile stack/ABI/arena conditions. Real disk/network/lifecycle
+originals pass at their recorded sources. HPET and monotonicity/headroom checks,
+original device/retransmission anchors and completion-before-timeout remain.
+Reduced idle/adjacent callbacks are host mechanism counts, not measured CPU or
+isolated guest speed claims. Pinned reference provenance below remains binding.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 The PR824 readonly DMA candidate uses an explicitly selected three-page lease
 for16-sector reads: queue/request/status occupy the first page, followed by8KiB
 data. Token generation, ownership and the complete CPU/physical/device range
