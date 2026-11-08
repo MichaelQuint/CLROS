@@ -1,5 +1,88 @@
 # Networking
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Accepted-prefix copies still validate complete scalar/vector ranges and metadata
+before narrowing, including invalid tails. HPET remains required: only adjacent
+private observations are shared; callback/device/ownership boundaries sample
+afresh and independent lifetime/clock health remains. Explicit serving profiles
+use eight retained segment lengths, 32 KiB payload, initial/restart 1 MSS and bounded
+slow start/congestion avoidance/recovery/RTO/persist/FIN contracts. Submission
+commits only after copied-frame acceptance; round-robin new-data work stays
+bounded at eight frames/pump. Actual service wire controls cover delay/loss/
+duplicates/reorder/partial ACK/zero windows/concurrency/close. Wider #751 RTT,
+p99, CPU/memory and Nanos-baseline criteria remain open. Mechanism counts and
+combined quiet results supply no per-change guest speed attribution.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+PR824's [finite performance candidate](../work/http-performance-phase.md) bounds
+scalar send and sendmsg payload copies by available retained send-buffer space
+and descriptor scratch. Scalar admission validates the complete original offer,
+including tails beyond either bound; sendmsg retains complete metadata snapshots
+and vector validation before narrowing payload. Existing descriptor/flag/write
+policy ordering, zero/full/partial outcomes and failed-copy ownership remain.
+Fifty focused socket/large-vector/send-window checks pass. This is a copied-byte
+mechanism result; current native/guest and combined HTTP measurement are pending.
+
+The candidate retains HPET and its per-observation validation. TCP receive/ACK
+and FIN-retry parsing share a private validated observation only across adjacent
+internal checks without callbacks/device/ownership transitions. Copied TX still
+samples afresh afterward. Only continuing idle connections with no queued bytes,
+retry/persist/close/TIME-WAIT or independent lifetime timer skip timer-only clock
+work. Finite deadlines, regression/headroom checks on timed operations and original
+RTO anchors remain. No timestamp authority escapes the synchronous private helper.
+The normal send pump retains a fresh sample even when idle, preserving the
+shared network owner's independent backwards-clock failure control; only its
+adjacent idle retry/close timer work omits repeated observations.
+
+Explicit bounded flight adds eight embedded segment-length records within each
+retained sender. Sequences derive from SND.UNA and preceding lengths; payload
+remains in the existing32KiB retained buffer. Every admission still validates
+the complete ring. Peer window, cwnd, retained bytes and ring capacity jointly
+bound transmission. Cumulative/partial ACKs release exact prefixes, including
+wrap and compaction; retries transmit only the oldest unacknowledged segment
+suffix. The oldest RTO is not renewed by new data or duplicate ACKs.
+
+The independently written controller follows [RFC5681](https://www.rfc-editor.org/rfc/rfc5681.html)
+and [RFC6298](https://www.rfc-editor.org/rfc/rfc6298.html): conservative one-MSS
+initial/restart window, slow start, byte-counted congestion avoidance, three-
+duplicate fast retransmit, Reno recovery, timeout cwnd reduction/backoff and
+Karn sampling. Original ACK/receive/FIN/persist/ownership controls remain.
+Segment/ring progress commits after copied-frame acceptance. Legacy single
+flight remains the default. Continuing service and Full/Timing profiles select the
+candidate; a network pump submits at most eight new-data frames, counting newly
+sequenced persist octets, with round-robin refill after retry/ACK/close service.
+Existing enclosing polling/time budgets remain. Actual native layout/stack and
+guest loss/window/fairness qualification remain pending.
+
+The service runner selects controls.v3 while legacy host contract fixtures retain
+controls.v2. Its existing three reserved tuples and45-second control budget
+exercise pending resets, unread last-close, two zero-window probes with a lost
+reopen and a concurrent healthy response. The healthy flow advertises32-byte
+MSS, withholds the first ACK through an RTO copy, requires two outstanding
+segments, delivers the later segment to bounded host reassembly first, sends
+three duplicate ACKs, checks fast retransmission, then partially ACKs16 bytes
+and sends a stale ACK before checking the exact remaining suffix after RTO.
+Complete original PCAP and the existing64-injection ledger independently verify
+those transitions and exact HTTP/FIN bytes. A copied report or mock control run
+does not supply native/guest acceptance. Guest execution remains pending.
+
+ProtonOS `src/ddk/Network/Stack/TcpConnection.cs`, pinned
+`c4f6db236c0cf8e979500efecd1d4002b34572c2`, informed only the advertised-right-edge
+comparison (local SHA256
+`D87D0F03F8E121E4C71A5F38AF2896A601C28CC8B85465BA15C2F22A740893C9`).
+Its AGPL implementation is not copied. The retained Nanos snapshot
+`ab823eb4bbcaf0874dc5e15568938bc02346d3d3` supplies clock/queue comparison context;
+its TSC calibration, larger buffers and page cache are not adopted. No native
+reference source or reference-system acceptance enters CLROS.
+
 [Step1754](../done/step1754.md) reconstructs four original2,009,369-byte bodies
 without payload retransmission. Data-to-ACK p95 is50-111us, while most observed
 delay lies after the covering ACK and before the next captured payload. Original

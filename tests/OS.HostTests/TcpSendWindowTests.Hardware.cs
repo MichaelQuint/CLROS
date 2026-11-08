@@ -13,8 +13,8 @@ internal static unsafe partial class TcpSendWindowTests
 {
     internal struct Hardware
     {
-        public ulong Now, AdvanceOnSend;
-        public uint Calls;
+        public ulong Now, AdvanceOnSend, AdvanceOnClock;
+        public uint Calls, ClockCalls;
         public byte Result;
         public int Length;
         public fixed byte Last[1514];

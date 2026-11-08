@@ -278,8 +278,10 @@ public static unsafe partial class LinuxSocketNetwork
             }
         }
 
-        for (uint i = 0; i < state->Count; i++)
+        uint submitted = 0, start = state->BoundedFlight != 0 ? state->NextTransmit : 0;
+        for (uint n = 0; n < state->Count; n++)
         {
+            uint i = (start + n) % state->Count;
             Slot* slot = state->Slots + i;
             if (slot->Phase == 0)
                 continue;
@@ -346,12 +348,23 @@ public static unsafe partial class LinuxSocketNetwork
                 continue;
             }
 
-            var sent = TransportResult(state, slot, Tx.Pump(&slot->Sender, output, out _));
+            var sent = PumpNewData(state, slot, i, output, ref submitted);
             if (sent == Status.TransportFailure)
                 return sent;
             if (sent == Status.Ignored)
                 continue;
-            var retry = TransportResult(state, slot, Tx.PumpRetransmission(&slot->Sender, output, out _));
+            bool newProbe = slot->Sender.InFlightBytes == 0 && slot->Sender.BufferedBytes != 0 && slot->Sender.PeerAdvertisedWindow == 0;
+            var retryResult = Tx.Status.NothingToSend;
+            if (state->BoundedFlight == 0 || !newProbe || submitted < 8)
+            {
+                retryResult = Tx.PumpRetransmission(&slot->Sender, output, out _);
+                if (state->BoundedFlight != 0 && newProbe && retryResult == Tx.Status.Success && slot->Sender.InFlightBytes != 0)
+                {
+                    submitted++;
+                    state->NextTransmit = (i + 1) % state->Count;
+                }
+            }
+            var retry = TransportResult(state, slot, retryResult);
             if (retry == Status.TransportFailure)
                 return retry;
             if (retry == Status.Ignored)
@@ -375,6 +388,60 @@ public static unsafe partial class LinuxSocketNetwork
             }
         }
 
+        return state->BoundedFlight != 0 ? PumpExtraFlight(state, output, ref submitted) : Status.Success;
+    }
+
+    /// <summary>Enable bounded congestion-controlled flight before any pending,
+    /// established or TIME-WAIT connection exists. Embedded sender rings retain
+    /// segment metadata; existing buffers keep their original sizes. One pump
+    /// submits at most eight new-data frames, round-robin, including new persist
+    /// octets. Retry/ACK/close keep their existing bounded turn. No callback is
+    /// invoked here; rejection preserves the default legacy mode unchanged.</summary>
+    public static bool EnableBoundedFlight(State* state)
+    {
+        if (!Current(state) || state->BoundedFlight != 0 || state->Table->Count != 0 || state->RetainedConnections != 0)
+            return false;
+        for (uint i = 0; i < state->Count; i++)
+            if (state->Slots[i].Phase != 0)
+                return false;
+        state->BoundedFlight = 1;
+        return true;
+    }
+
+    private static Status PumpNewData(State* state, Slot* slot, uint index, Span<byte> output, ref uint submitted)
+    {
+        // With no unsent bytes this still performs the independent clock-health
+        // check. A full new-data budget must not suppress that idle invariant.
+        if (state->BoundedFlight != 0 && submitted == 8 && slot->Sender.BufferedBytes > slot->Sender.InFlightBytes)
+            return Status.Success;
+        var result = Tx.Pump(&slot->Sender, output, out _);
+        if (state->BoundedFlight != 0 && result == Tx.Status.Success)
+        {
+            submitted++;
+            state->NextTransmit = (index + 1) % state->Count;
+        }
+        return TransportResult(state, slot, result);
+    }
+
+    private static Status PumpExtraFlight(State* state, Span<byte> output, ref uint submitted)
+    {
+        // Every connection already received retry/ACK/close service. Complete
+        // at most eight bounded scans, ending on the first no-progress round.
+        for (uint pass = 0; pass < 8 && submitted < 8; pass++)
+        {
+            uint before = submitted, start = state->NextTransmit;
+            for (uint n = 0; n < state->Count && submitted < 8; n++)
+            {
+                uint index = (start + n) % state->Count;
+                Slot* slot = state->Slots + index;
+                if (slot->Phase != 3 || !slot->Sender.Active || slot->Sender.BufferedBytes <= slot->Sender.InFlightBytes || slot->Sender.OutstandingSegments == Tx.MaximumOutstandingSegments)
+                    continue;
+                if (PumpNewData(state, slot, index, output, ref submitted) == Status.TransportFailure)
+                    return Status.TransportFailure;
+            }
+            if (submitted == before)
+                break;
+        }
         return Status.Success;
     }
 
@@ -439,6 +506,8 @@ public static unsafe partial class LinuxSocketNetwork
         byte* buffer = state->Buffers + index * (state->ReceiveBytes + state->SendBytes);
         var info = new TcpEstablishedStreamIpv4FramePlannerInfo(state->LocalMac, state->PeerMac, state->Sockets->InterfaceAddress, state->PeerAddress, 1460, (ushort)state->ReceiveBytes);
         if (Rx.Initialize(&slot->Receiver, state->Table, slot->Handshake.Connection, buffer, state->ReceiveBytes, info, state->Io.Context, state->Io.Send) != Rx.Status.Success || Tx.Initialize(&slot->Sender, &slot->Receiver, &slot->Handshake, buffer + state->ReceiveBytes, state->SendBytes, 1500) != Tx.Status.Success || Tx.ConfigureRetransmission(&slot->Sender, state->Io.Context, state->Io.NowNanoseconds, 0, continuing: true) != Tx.Status.Success || Tx.ConfigureClose(&slot->Sender, 30_000_000_000) != Tx.Status.Success)
+            return Fail(state);
+        if (state->BoundedFlight != 0 && Tx.ConfigureBoundedFlight(&slot->Sender) != Tx.Status.Success)
             return Fail(state);
         if (state->MeasureLeases != 0)
         {
@@ -792,7 +861,7 @@ public static unsafe partial class LinuxSocketNetwork
     ;
     private static bool Shape(State* state, bool allowFailed)
     {
-        if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 || state->MeasureLeases > 1 || state->MeasureLeases == 0 && (state->Leased != 0 || state->PeakLeased != 0 || state->LeaseAcquired != 0 || state->LeaseReturned != 0) || state->Failed != 0 && !allowFailed || state->Count is 0 or > MaximumConnections || state->ReceiveBytes is < 8 or > 32768 || state->SendBytes is < 8 or > 32768 || ((state->ReceiveBytes | state->SendBytes) & 7) != 0 || !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Network != state || !Extent(state->Table, (ulong)sizeof(TcpConnectionTable.Owner)) || !Extent(state->Slots, state->Count * (ulong)sizeof(Slot)) || !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)))
+        if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 || state->BoundedFlight > 1 || state->NextTransmit >= state->Count || state->BoundedFlight == 0 && state->NextTransmit != 0 || state->MeasureLeases > 1 || state->MeasureLeases == 0 && (state->Leased != 0 || state->PeakLeased != 0 || state->LeaseAcquired != 0 || state->LeaseReturned != 0) || state->Failed != 0 && !allowFailed || state->Count is 0 or > MaximumConnections || state->ReceiveBytes is < 8 or > 32768 || state->SendBytes is < 8 or > 32768 || ((state->ReceiveBytes | state->SendBytes) & 7) != 0 || !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Network != state || !Extent(state->Table, (ulong)sizeof(TcpConnectionTable.Owner)) || !Extent(state->Slots, state->Count * (ulong)sizeof(Slot)) || !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)))
             return false;
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (!BoundContextCurrent(state))

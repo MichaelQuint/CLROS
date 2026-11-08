@@ -141,7 +141,7 @@ try
     using SocketContainmentPeer? containmentPeer = options.SocketContainmentPeer ? new(TimeSpan.FromSeconds(options.TimeoutSeconds)) : null;
     using CancellationTokenSource? serviceCancellation = options.ContinuingService ? new() : null;
     using WebFrameControl? webFrames = options.ContinuingWeb || options.ContinuingService ? new(TimeSpan.FromSeconds(options.TimeoutSeconds), continuingService: options.ContinuingService) : null;
-    using ServiceSocketControls? serviceControls = options.ContinuingService && !options.ServiceQuotaFailure ? new() : null;
+    using ServiceSocketControls? serviceControls = options.ContinuingService && !options.ServiceQuotaFailure ? new(boundedFlight: true) : null;
     Task<ServiceSocketControls.Report>? serviceControlTask = null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;

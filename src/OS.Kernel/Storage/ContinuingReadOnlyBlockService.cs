@@ -6,7 +6,8 @@ namespace OS.Storage;
 /// supervisor caller retains the state, callbacks, UC MMIO and coherent WB DMA
 /// backing until Stop succeeds. Negotiation and actual mapping/device authority
 /// belong to the adapter. One IN request is outstanding at a time: legacy calls
-/// select512 bytes, explicit reads select at most4 sectors in the same DMA page. No
+/// select512 bytes; explicit large-read admission selects up to16 sectors using
+/// one control page and8KiB data. Other callers retain the one-page/four-sector layout. No
 /// interrupts, writes, hidden allocation, synchronous wait or caller pointer is
 /// retained. Poll performs one observation so other services can keep running.</summary>
 public static unsafe partial class ContinuingReadOnlyBlockService
@@ -16,7 +17,8 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         ReadyPhase = 4, FaultPhase = 5, RetiredPhase = 6;
     private const ulong MaximumAddress = 0x0000800000000000UL;
 
-    /// <summary>Configure/read back queue0 once, retain one4KiB DMA lease and
+    /// <summary>Configure/read back queue0 once, retain the selected one- or
+    /// three-page DMA lease and
     /// enable bus mastering/DRIVER_OK. Invalid admission has no effects. Partial
     /// setup failures preserve their reason and attempt bounded Stop; inspect
     /// RequiresCleanup before releasing any adapter resource.</summary>
@@ -58,7 +60,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         if (s->Capacity != a.ExpectedCapacity)
             return Status.ConfigurationChanged;
         s->Queue.Status = VirtioBlkQueueN0.Configure(a.Common, a.Pool, a.Access.Queue,
-            ref s->Allocation, ref s->DeviceOwned, ref s->Queue, a.Notify, a.Device);
+            ref s->Allocation, ref s->DeviceOwned, ref s->Queue, a.Notify, a.Device, continuingRead: a.UseLargeReadLayout);
         if (s->Queue.Status != VirtioBlkQueueStatus.Success)
             return Status.SetupFailed;
         ushort offset = 0;
@@ -88,8 +90,8 @@ public static unsafe partial class ContinuingReadOnlyBlockService
     public static Status Submit(State* s, ulong sector, ReadToken* token)
         => Submit(s, sector, 1, token);
 
-    /// <summary>Publish one contiguous1..4-sector IN request in the existing
-    /// retained DMA page. Legacy Submit selects1. Invalid count or capacity span
+    /// <summary>Publish one contiguous IN request within the selected layout's
+    /// four- or16-sector limit. Legacy Submit selects1. Invalid count or capacity span
     /// returns SectorOutOfRange without publication; no deadline or ownership rule
     /// changes. Token storage and callback lifetimes follow the legacy contract.</summary>
     public static Status Submit(State* s, ulong sector, uint sectors, ReadToken* token)
@@ -103,7 +105,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         *token = default;
         if (s->Phase != IdlePhase)
             return Status.Busy;
-        if (sectors is 0 or > MaximumReadSectors || sector >= s->Capacity || sectors > s->Capacity - sector)
+        if (sectors == 0 || sectors > s->MaximumTransferSectors || sector >= s->Capacity || sectors > s->Capacity - sector)
             return Status.SectorOutOfRange;
         uint bytes = sectors * VirtioBlkDmaLayout.DataBytes;
         if (s->RequestGeneration == ~0UL)
@@ -123,9 +125,9 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         *(ulong*)(data + VirtioBlkDmaLayout.RequestOffset + 8) = sector;
         data[VirtioBlkDmaLayout.StatusOffset] = 0xff;
         for (uint i = 0; i < bytes; i++)
-            data[VirtioBlkDmaLayout.DataOffset + i] = 0;
+            data[s->Queue.Layout.DataByteOffset + i] = 0;
         Descriptor(data, address + VirtioBlkDmaLayout.RequestOffset, 16, 1, 1);
-        Descriptor(data + 16, address + VirtioBlkDmaLayout.DataOffset, bytes, 3, 2);
+        Descriptor(data + 16, address + s->Queue.Layout.DataByteOffset, bytes, 3, 2);
         Descriptor(data + 32, address + VirtioBlkDmaLayout.StatusOffset, 1, 2, 0);
         ushort* available = (ushort*)(data + s->Queue.Layout.Rings.AvailableRing.Offset);
         available[2 + (s->AvailableIndex & 7)] = 0;
@@ -170,7 +172,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         if (!MetadataOutput(s, (ulong)completion, (ulong)sizeof(Completion)))
             return Status.InvalidStorage;
         *completion = default;
-        if ((s->Phase is PendingPhase or ReadyPhase) && (s->RequestSectors == 0 || s->RequestSectors > MaximumReadSectors))
+        if ((s->Phase is PendingPhase or ReadyPhase) && (s->RequestSectors == 0 || s->RequestSectors > s->MaximumTransferSectors))
             return Fault(s, Status.InvalidCompletion);
         uint bytes = s->RequestBytes;
         if (s->PollCount != ~0UL)
@@ -197,7 +199,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
             if (a.Read32(a.Context, element, &id) != 1 || a.Read32(a.Context, element + 4, &length) != 1 ||
                 a.Read8(a.Context, cpu + VirtioBlkDmaLayout.StatusOffset, &deviceStatus) != 1)
                 return Fault(s, Status.ReadFailed);
-            var checkedCompletion = UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, id, length, deviceStatus, s->RequestSectors);
+            var checkedCompletion = UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, id, length, deviceStatus, s->RequestSectors, s->MaximumTransferSectors);
             if (checkedCompletion != VirtioBlkReadStatus.Success)
                 return Fault(s, CompletionStatus(checkedCompletion));
             status = DeviceStatus(s);
@@ -222,6 +224,11 @@ public static unsafe partial class ContinuingReadOnlyBlockService
             s->Phase = ReadyPhase;
             return Status.Ready;
         }
+        // Device status and the used index were still checked above. Idle owns
+        // no request deadline or independent watchdog; the next Submit samples
+        // afresh before publication. Pending and ready checks retain fresh time.
+        if (s->Phase == IdlePhase)
+            return Status.Idle;
         status = ReadClock(s, out ulong now);
         if (status != Status.Success)
             return Fault(s, status);
@@ -253,7 +260,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
             return Status.Cancelled;
         if (s->Phase != ReadyPhase)
             return Status.Pending;
-        if (s->RequestSectors == 0 || s->RequestSectors > MaximumReadSectors)
+        if (s->RequestSectors == 0 || s->RequestSectors > s->MaximumTransferSectors)
             return Fault(s, Status.InvalidCompletion);
         uint bytes = s->RequestBytes;
         if ((uint)destination.Length < bytes)
@@ -267,7 +274,7 @@ public static unsafe partial class ContinuingReadOnlyBlockService
                 return Fault(s, status);
             if (!Fence(s))
                 return Fault(s, Status.OrderingFailed);
-            byte* source = (byte*)(s->Queue.Layout.Range.CpuVirtualAddress + VirtioBlkDmaLayout.DataOffset);
+            byte* source = (byte*)(s->Queue.Layout.Range.CpuVirtualAddress + s->Queue.Layout.DataByteOffset);
             if (!Observe(s, ObservationKind.CopyReady, s->CopiedCount + 1, bytes, source))
                 return Fault(s, Status.ObservationRejected);
             uint i = 0;
@@ -351,6 +358,12 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         s->Queue.CleanupStatus = VirtioBlkQueueStatus.Success;
         if (s->Allocation.IsInitialized && !s->Queue.DmaReleased)
         {
+            if (PageAlignedDmaBuffers.ValidateAllocation(s->Input.Pool, s->Allocation,
+                s->DeviceOwned && !s->ReturnedToCpu ? DmaBufferOwnership.Device : DmaBufferOwnership.Cpu) != DmaBufferStatus.Success)
+            {
+                s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected;
+                return CleanupFailure(s, Status.DmaRejected);
+            }
             if (s->DeviceOwned && !s->ReturnedToCpu)
             {
                 if (PageAlignedDmaBuffers.TryReturnToCpu(s->Input.Pool, s->Allocation.Token) != DmaBufferStatus.Success)
@@ -496,7 +509,25 @@ public static unsafe partial class ContinuingReadOnlyBlockService
     private static bool Bound(State* s) => Storage((ulong)s, (ulong)sizeof(State)) && s->Self == (ulong)s &&
         s->Phase is >= StartingPhase and <= RetiredPhase && (s->Phase == RetiredPhase ||
         (s->Input.Pool != null && s->Input.Pool->Self == (ulong)s->Input.Pool && s->Input.Pool->Epoch == s->PoolEpoch));
-    private static bool Running(State* s) => Bound(s) && s->Running;
+    private static bool Running(State* s) => Bound(s) && s->Running && CurrentDma(s);
+
+    // No callback or ownership transition intervenes between this exact pool
+    // check and the private layout comparison. Both retained copies must name
+    // the same complete allocation; neither can enlarge device/data authority.
+    private static bool CurrentDma(State* s)
+    {
+        if (PageAlignedDmaBuffers.ValidateAllocation(s->Input.Pool, s->Allocation, DmaBufferOwnership.Device) != DmaBufferStatus.Success)
+            return false;
+        var range = s->Allocation.Range;
+        var layout = s->Queue.Layout;
+        return layout.IsInitialized && range.CpuVirtualAddress == layout.Range.CpuVirtualAddress &&
+            range.PhysicalAddress == layout.Range.PhysicalAddress && range.DeviceAddress == layout.Range.DeviceAddress &&
+            range.ByteLength == layout.Range.ByteLength && range.Offset == layout.Range.Offset &&
+            range.DeviceAddressWidth == layout.Range.DeviceAddressWidth &&
+            range.ByteLength == (s->Input.UseLargeReadLayout ? VirtioBlkDmaLayout.ContinuingReadPages : 1) * 4096UL &&
+            layout.DataByteOffset == (s->Input.UseLargeReadLayout ? VirtioBlkDmaLayout.ContinuingReadDataOffset : VirtioBlkDmaLayout.DataOffset) &&
+            layout.ReadSectorLimit == (s->Input.UseLargeReadLayout ? VirtioBlkDmaLayout.ContinuingReadSectors : MaximumReadSectors);
+    }
     private static bool MetadataOutput(State* s, ulong start, ulong bytes) => Storage(start, bytes) && CallerBuffer(s, start, bytes);
     private static bool CallerBuffer(State* s, ulong start, ulong bytes) => Storage(start, bytes, 1) &&
         !Overlap(start, bytes, (ulong)s, (ulong)sizeof(State)) &&

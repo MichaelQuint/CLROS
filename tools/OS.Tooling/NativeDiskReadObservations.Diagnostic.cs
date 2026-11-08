@@ -12,10 +12,10 @@ public static partial class NativeDiskReadObservations
     /// The enclosing timing-only protocol owns original-process/native authority.
     /// </summary>
     public static DiagnosticInspection InspectDiagnostic(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage,
-        Boundary boundary, bool payloadIncluded)
+        Boundary boundary, bool payloadIncluded, uint maximumReadSectors = 4)
     {
         var representation = payloadIncluded ? Representation.DiagnosticTrace : Representation.DiagnosticSummary;
-        var inspection = InspectCore(selectedRows, rawImage, boundary, false, null, true, representation);
+        var inspection = InspectCore(selectedRows, rawImage, boundary, false, null, true, representation, maximumReadSectors);
         return new DiagnosticInspection(inspection, payloadIncluded);
     }
 

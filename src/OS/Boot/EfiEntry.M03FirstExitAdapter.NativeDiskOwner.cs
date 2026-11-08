@@ -25,7 +25,7 @@ public static unsafe partial class EfiEntry
             internal Storage* Boot;
             internal Block.State Device;
             internal DmaBufferPool Pool;
-            internal DmaBufferSlot DmaSlot;
+            internal DmaBufferSlot* DmaSlots;
             internal Fs.Mount Mount;
             internal LinuxDescriptorServices.DiskState Descriptors;
             internal NativeDiskEvidence Evidence;

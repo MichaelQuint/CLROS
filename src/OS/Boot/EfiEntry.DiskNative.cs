@@ -27,12 +27,16 @@ public static unsafe partial class EfiEntry
 #endif
 #if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
         private const uint NativeDiskFileChainCaches = 2;
+        private const uint NativeDiskDmaPages = VirtioBlkDmaLayout.ContinuingReadPages;
+#else
+        private const uint NativeDiskDmaPages = 1;
 #endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
 
         private static NativeDiskOwner s_nativeDisk;
 
-        // One4KiB device DMA page; everything after it is ordinary supervisor
+        // One control page and two data pages in Full/Timing; legacy profiles
+        // retain one DMA page. Everything after DMA is ordinary supervisor
         // backing. Sizes follow real sizeof,8 operations/files,4 paired caches,
         // 4096-cluster maps and8192-byte per-completion ranges. No file preload.
         private static ulong NativeDiskTake(ref ulong cursor, ulong bytes)
@@ -43,7 +47,8 @@ public static unsafe partial class EfiEntry
         }
         private static ulong NativeDiskLayout(NativeDiskOwner* o, ulong start)
         {
-            ulong cursor = start + Page;
+            ulong cursor = start + NativeDiskDmaPages * Page;
+            var dmaSlots = (DmaBufferSlot*)NativeDiskTake(ref cursor, NativeDiskDmaPages * (ulong)sizeof(DmaBufferSlot));
             byte* sector = (byte*)NativeDiskTake(ref cursor, 512);
             byte* entries = (byte*)NativeDiskTake(ref cursor, PrimaryGPTIndependentlyBoundsCRC.ArrayBytes);
             var operations = (Fs.Operation*)NativeDiskTake(ref cursor, NativeDiskSlots * (ulong)sizeof(Fs.Operation));
@@ -87,6 +92,7 @@ public static unsafe partial class EfiEntry
             }
             if (o != null)
             {
+                o->DmaSlots = dmaSlots;
                 o->Sector = sector;
                 o->Entries = entries;
                 o->Operations = operations;
@@ -234,8 +240,8 @@ public static unsafe partial class EfiEntry
                 var negotiated = MinimalVirtioBlkFeatureSet.Negotiate(o->Common, 1024, null, read32, write32, &ReadVirtioStatus, &WriteVirtioStatus);
                 if (!negotiated.Succeeded || negotiated.Selected != (BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly) ||
                     !NativeDiskCapacity(o, read32, out o->Capacity) ||
-                    DmaAddressWindow.TryCreate(o->Arena, o->Arena, o->Arena, Page, 32, out var window) != DmaAddressStatus.Success ||
-                    PageAlignedDmaBuffers.TryInitialize(&o->Pool, window, &o->DmaSlot, 1, NativeDiskEpoch) != DmaBufferStatus.Success)
+                    DmaAddressWindow.TryCreate(o->Arena, o->Arena, o->Arena, NativeDiskDmaPages * Page, 32, out var window) != DmaAddressStatus.Success ||
+                    PageAlignedDmaBuffers.TryInitialize(&o->Pool, window, o->DmaSlots, NativeDiskDmaPages, NativeDiskEpoch) != DmaBufferStatus.Success)
                     return false;
                 VirtioBlkReadAccess access = new();
                 access.Queue.Context = o;
@@ -256,6 +262,7 @@ public static unsafe partial class EfiEntry
                     NotifyMultiplier = o->NotifyMultiplier,
                     ResetLimit = 1024,
                     Pool = &o->Pool,
+                    UseLargeReadLayout = NativeDiskDmaPages == VirtioBlkDmaLayout.ContinuingReadPages,
                     Epoch = NativeDiskEpoch,
                     NegotiatedFeatures = negotiated.Selected,
                     ExpectedCapacity = o->Capacity,
@@ -351,7 +358,7 @@ public static unsafe partial class EfiEntry
                         DirectoryEntryBudget = 4096
                     };
                     uint dataSectors = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ||
-                        OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe ? 4U : 1U;
+                        OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe ? VirtioBlkDmaLayout.ContinuingReadSectors : 1U;
                     if (Fs.Start(&o->Mount, a, dataSectors) != Fs.Status.Pending)
                         return NativeDiskFail(o);
 #if M10_018_PROBE

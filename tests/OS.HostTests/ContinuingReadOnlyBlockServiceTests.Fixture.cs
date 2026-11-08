@@ -9,29 +9,34 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
     private sealed class Fixture : IDisposable
     {
         private static long epoch;
-        private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
+        private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(20480, 4096);
         internal byte* Data => backing + 4096;
         internal readonly Block.State* State = (Block.State*)NativeMemory.AllocZeroed((nuint)sizeof(Block.State));
         internal readonly DmaBufferPool* Pool = (DmaBufferPool*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferPool));
-        internal readonly DmaBufferSlot* Slot = (DmaBufferSlot*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferSlot));
+        internal readonly DmaBufferSlot* Slot = (DmaBufferSlot*)NativeMemory.AllocZeroed(3, (nuint)sizeof(DmaBufferSlot));
         internal readonly Hardware* Hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
         private static readonly int ownerOffset = (int)Marshal.OffsetOf<DmaBufferSlot>("Owner");
         internal DmaBufferOwnership Owner => *(DmaBufferOwnership*)((byte*)Slot + ownerOffset);
         private readonly ulong lifetime;
         private readonly VirtioMappedRegion common, notify, device;
         internal Block.ObservationAccess Observation;
-        internal Fixture()
+        private readonly bool largeReads;
+        internal Fixture(bool largeReads = false)
         {
-            new Span<byte>(backing, 12288).Fill(0xa5);
-            HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
+            this.largeReads = largeReads;
+            uint pages = largeReads ? 3U : 1U;
+            new Span<byte>(backing, 20480).Fill(0xa5);
+            HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, pages * 4096UL, 64, out var window));
             lifetime = (ulong)Interlocked.Increment(ref epoch);
-            HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, Slot, 1, lifetime));
+            HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, Slot, pages, lifetime));
             Hardware->Data = Data;
             Hardware->Pool = Pool;
             Hardware->Capacity = Capacity;
             Hardware->Status = 11;
             Hardware->Generation = 7;
             Hardware->ExpectedBytes = 512;
+            Hardware->DataOffset = largeReads ? 4096U : 512U;
+            Hardware->DmaMask = largeReads ? 7UL : 1UL;
             PciSizedBar* bars = stackalloc PciSizedBar[6];
             new Span<PciSizedBar>(bars, 6).Clear();
             HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
@@ -52,6 +57,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
             NotifyMultiplier = 4,
             ResetLimit = 3,
             Pool = Pool,
+            UseLargeReadLayout = largeReads,
             Epoch = lifetime,
             NegotiatedFeatures = BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly,
             ExpectedCapacity = Capacity,
@@ -85,7 +91,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
             if (!Hardware->Pending)
                 Hardware->BadOrder = true;
             for (int i = 0; i < Hardware->ExpectedBytes; i++)
-                Data[512 + i] = Payload(Hardware->Sector, i);
+                Data[Hardware->DataOffset + i] = Payload(Hardware->Sector, i);
             Data[272] = status;
             byte* element = Data + 152 + (Hardware->Produced & 7) * 8;
             *(uint*)element = id;
@@ -95,7 +101,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
             Hardware->Pending = false;
         }
         internal void CheckGuards() => HostCheck.True(!Hardware->BadOrder &&
-            new ReadOnlySpan<byte>(backing, 4096).IndexOfAnyExcept((byte)0xa5) < 0 && new ReadOnlySpan<byte>(Data + 4096, 4096).IndexOfAnyExcept((byte)0xa5) < 0);
+            new ReadOnlySpan<byte>(backing, 4096).IndexOfAnyExcept((byte)0xa5) < 0 && new ReadOnlySpan<byte>(Data + (largeReads ? 12288 : 4096), 4096).IndexOfAnyExcept((byte)0xa5) < 0);
         public void Dispose()
         {
             NativeMemory.AlignedFree(backing);

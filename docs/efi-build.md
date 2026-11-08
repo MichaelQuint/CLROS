@@ -1,6 +1,25 @@
 # EFI Build
 
-Current PR814 qualification is tracked in the
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Thirteen fresh native publications and exact six-component archive joins retain
+this phase's actual emitted layout, stack, ABI and ownership proofs, with 11
+explicit activation scopes. Ordinary/writable gain no functional acceptance.
+TCP owner 352/receiver 128/slot 808 and the 93-page continuing readonly arena include
+embedded segment metadata and the complete 12 KiB DMA extent. Worker, switch,
+gateway, BSP, IRQ and callback-stack premises are profile-specific; budgets were
+not increased. The two changed quiet-owner host files are the only wide source
+receipt delta from 80eff. Earlier stack approval is not substituted for this proof.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+Historical PR814 qualification is tracked in the
 [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 Historical results below retain their original source, runtime, backend and
 launch settings.

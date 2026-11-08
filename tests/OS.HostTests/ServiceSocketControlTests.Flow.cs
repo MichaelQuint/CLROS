@@ -15,5 +15,6 @@ internal static partial class ServiceSocketControlTests
         internal uint Next = unchecked(client + 1);
         internal byte[] Response = [];
         internal int Probes;
+        internal int FlightStage, FlightDuplicates;
     }
 }

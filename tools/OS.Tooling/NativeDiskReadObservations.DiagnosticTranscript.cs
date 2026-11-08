@@ -14,7 +14,7 @@ public static partial class NativeDiskReadObservations
     /// divergent evidence throws ToolFailure. Inputs are neither mutated nor kept.
     /// </summary>
     public static DiagnosticInspection InspectDiagnosticTranscript(string text, ReadOnlySpan<byte> rawImage,
-        bool payloadIncluded, ulong assetInode, ulong assetBytes)
+        bool payloadIncluded, ulong assetInode, ulong assetBytes, uint maximumReadSectors = 4)
     {
         Need(text is not null && text.Length <= 32 * 1024 * 1024 && assetInode != 0 && assetBytes >= 65536,
             "diagnostic_transcript_input");
@@ -65,7 +65,7 @@ public static partial class NativeDiskReadObservations
             "diagnostic_transcript_record_count");
         var boundary = new Boundary(binding.Owner, binding.Epoch, begin["completed"], begin["copied"],
             end["submitted"], end["completed"], end["copied"]);
-        var result = InspectDiagnostic(rows, rawImage, boundary, payloadIncluded);
+        var result = InspectDiagnostic(rows, rawImage, boundary, payloadIncluded, maximumReadSectors);
         Need(result.Cancelled == end["cancelled"] - begin["cancelled"], "diagnostic_transcript_cancellation");
         foreach (string row in rows)
         {

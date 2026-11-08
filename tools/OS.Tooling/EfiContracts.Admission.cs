@@ -190,6 +190,7 @@ public static partial class EfiContracts
         "..\\OS.Kernel\\Net\\TcpSendWindow.Status.cs",
         "..\\OS.Kernel\\Net\\TcpSendWindow.Owner.cs",
         "..\\OS.Kernel\\Net\\TcpSendWindow.Close.cs",
+        "..\\OS.Kernel\\Net\\TcpSendWindow.Flight.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.Status.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.Record.cs",

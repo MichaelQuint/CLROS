@@ -56,6 +56,7 @@ internal static unsafe partial class LinuxDescriptorServicesTests
             if (source == null)
                 return 0;
             destination[i] = *source;
+            model->InputBytes++;
         }
 
         return 1;

@@ -30,6 +30,16 @@ public static partial class NativeAotHttpBenchmarkPeer
     {
         ArgumentNullException.ThrowIfNull(runRunner);
         ArgumentNullException.ThrowIfNull(browser);
+        return await RunCoreAsync(root, serial, runRunner, inventory, options, runnerTimeoutSeconds, browser, cancellation);
+    }
+
+    private static async Task<Completion> RunCoreAsync(string root, string serial,
+        Func<int, CancellationToken, Task<ProcessResult>> runRunner,
+        WebRootDiskInventory.Inspection inventory, HttpWorkloadBenchmark.Options options,
+        int runnerTimeoutSeconds, Func<int, string, CancellationToken, Task>? browser,
+        CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(runRunner);
         ArgumentNullException.ThrowIfNull(inventory);
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
@@ -78,7 +88,7 @@ public static partial class NativeAotHttpBenchmarkPeer
             owned.Cancel();
             joined = await runner;
             Need(joined.Cancelled && joined.TerminationConfirmed && !joined.TimedOut
-                && !joined.OutputLimitExceeded, "runner_join");
+                && !joined.OutputLimitExceeded && joined.FailureReason.Length == 0, "runner_join");
             InspectStoppedSerial();
             using Socket stopped = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             using var refusal = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -126,7 +136,7 @@ public static partial class NativeAotHttpBenchmarkPeer
                     FileMode.CreateNew, FileAccess.Write, FileShare.Read);
                 await JsonSerializer.SerializeAsync(receipt, new
                 {
-                    Schema = "clros-http-benchmark-owner-v1",
+                    Schema = browser is null ? "clros-quiet-http-benchmark-owner-v1" : "clros-http-benchmark-owner-v1",
                     Complete = complete && failure is null && cleanupFailure is null,
                     Failure = Reason(failure),
                     CleanupFailure = Reason(cleanupFailure),
@@ -176,17 +186,21 @@ public static partial class NativeAotHttpBenchmarkPeer
             using var startup = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
             startup.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.HttpReadinessTimeoutSeconds));
             await NativeAotSocketPeer.WaitForSerialAsync(serial,
-                text => text.Contains("M10_018_LISTENING ", StringComparison.Ordinal), startup.Token);
+                text => browser is null ? IsQuietReady(text) :
+                    text.Contains("M10_018_LISTENING ", StringComparison.Ordinal), startup.Token);
             using (var matrix = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token))
             {
                 matrix.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.HttpMatrixTimeoutSeconds));
                 report = await HttpWorkloadBenchmark.RunAsync(root, Path.Combine(directory, "requests"),
                     new Uri("http://127.0.0.1:" + port + "/"), inventory, options, matrix.Token);
             }
-            using var browserDeadline = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-            browserDeadline.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds));
-            await browser(port, Path.Combine(directory, "browser"), browserDeadline.Token);
-            browserCompleted = true;
+            if (browser is not null)
+            {
+                using var browserDeadline = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+                browserDeadline.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds));
+                await browser(port, Path.Combine(directory, "browser"), browserDeadline.Token);
+                browserCompleted = true;
+            }
         }
 
         void InspectStoppedSerial()
@@ -195,6 +209,11 @@ public static partial class NativeAotHttpBenchmarkPeer
             using FileStream input = File.OpenRead(serial);
             Need(input.Length is > 0 and <= DiskStaticCapturePolicy.SerialBytes, "serial_extent");
             using StreamReader reader = new(input, new UTF8Encoding(false, true));
+            if (browser is null)
+            {
+                Need(IsQuietReady(reader.ReadToEnd()), "quiet_readiness_lost");
+                return;
+            }
             for (string? line; (line = reader.ReadLine()) is not null;)
                 Need(!line.StartsWith("TEST_FAIL", StringComparison.Ordinal)
                     && !line.StartsWith("OS_SMOKE_FAIL", StringComparison.Ordinal), "guest_failure");

@@ -17,6 +17,7 @@ public sealed partial class ServiceSocketControls
         internal uint Next = unchecked(sequence + 1), Server;
         internal int Received, Writes;
         internal readonly byte[] Response = new byte[8192];
+        internal readonly bool[] Present = new bool[8192];
         internal DateTimeOffset Started;
     }
 }

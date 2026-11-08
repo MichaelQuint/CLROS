@@ -10,7 +10,7 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
 {
     private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action, uint sectors = 1)
     {
-        if (sectors is 0 or > 4 || (sectors != 1 && action != DataIo) ||
+        if (sectors == 0 || sectors > ReadSectorLimit(m) || (sectors != 1 && action != DataIo) ||
             lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast ||
             sectors - 1 > m->Input.PartitionLast - lba)
             return Fail(m, o, Status.CorruptFile);
@@ -89,7 +89,7 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
         uint sectors = (uint)(o->Waiting >> 4) + 1, requestedBytes = sectors * 512;
         bool direct = sectors > 1;
         ulong actualRequestSector = 0;
-        if (sectors > 4 || direct && (action != DataIo || o->Filled > o->Wanted ||
+        if (sectors > ReadSectorLimit(m) || direct && (action != DataIo || o->Filled > o->Wanted ||
             requestedBytes > o->Wanted - o->Filled || o->Wanted > o->Storage.RangeCapacity ||
             ((o->Offset + o->Filled) & 511) != 0))
             return Fail(m, o, Status.InvalidState);
@@ -264,5 +264,14 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
             }
         }
         return ReadSector(m, o, lba, DataIo, sectors);
+    }
+
+    private static uint ReadSectorLimit(Mount* m)
+    {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null)
+            return 1;
+#endif
+        return m->DataReadSectors;
     }
 }

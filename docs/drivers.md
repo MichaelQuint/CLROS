@@ -1,5 +1,50 @@
 # Drivers
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Current exact native proofs account for complete 12 KiB readonly DMA allocation,
+authenticated mappings/address domains/descriptor lengths and reset/fence/scrub/
+release. The TCP retained ring and all affected legacy consumers also retain
+actual own-profile stack/ABI/arena conditions. Real disk/network/lifecycle
+originals pass at their recorded sources. HPET and monotonicity/headroom checks,
+original device/retransmission anchors and completion-before-timeout remain.
+Reduced idle/adjacent callbacks are host mechanism counts, not measured CPU or
+isolated guest speed claims. Pinned reference provenance below remains binding.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+The PR824 readonly DMA candidate uses an explicitly selected three-page lease
+for16-sector reads: queue/request/status occupy the first page, followed by8KiB
+data. Token generation, ownership and the complete CPU/physical/device range
+are checked before use and cleanup. All selected pages stay device-owned until
+actual reset, bus-master disable and fence; changed ownership/extent quarantines
+cleanup before scrub/release. Legacy callers retain their one-page layout.
+Full/Timing native disk arenas reserve the complete DMA extent and separate slot
+metadata. Their retained evidence buffer holds18 records (submit, completion,
+sixteen sector chunks); overall evidence/polling/deadline budgets stay unchanged.
+The byte consumer requires explicit16-sector selection, with exact ordered chunk,
+image, counter and cleanup checks. Current native layout/stack/ownership and guest
+qualification remain required by [the phase](../work/http-performance-phase.md).
+
+The scoped clock candidate omits the block clock callback only for an idle
+request owner after checking actual device status and the used index. The next
+Submit samples afresh; pending/ready work retains fresh samples, original request
+deadlines and completion-before-timeout handling. No global time cache or clock
+source replacement is added. The pending-only concept follows SharpOS's
+`TimerQueue.HasPending`/`Scheduler.DrainExpiredTimers` at pinned
+`b80ee3a4175e1522d1a12ba7fe371a49da3207f5`, without scheduler adaptation.
+Local SHA256: TimerQueue
+`03CCAB6366B25FE543C3DE3BEF840B6E9049996BC2388C4DB05E98F3152A5144`, Scheduler
+`634C3D43689BA521865DD721CC163D1F3B0377100902602E67245D2DA0D18DCA`.
+The [license audit](license-audit.md) records the SharpOS grant/CC0 evidence;
+this implementation and its tests are independently written.
+
 [Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 

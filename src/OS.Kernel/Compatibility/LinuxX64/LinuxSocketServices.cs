@@ -344,6 +344,17 @@ public static unsafe partial class LinuxSocketServices
         return result == TcpSendWindow.Status.Success ? accepted : result == TcpSendWindow.Status.WouldBlock ? Again : -5;
     }
 
+    // Call only after the original ranges, metadata and write policy pass.
+    // This synchronous bound grants no authority to retain a user pointer or
+    // skip range validation; SendCopied still owns final queue admission.
+    private static uint SendCopyBytes(State* state, uint index, ulong offered)
+    {
+        Endpoint* e = state->Slots + index;
+        uint available = e->SendBytes > e->Sender->BufferedBytes ? e->SendBytes - (uint)e->Sender->BufferedBytes : 0;
+        uint bytes = (uint)(offered < state->Descriptors->Owner.ScratchBytes ? offered : state->Descriptors->Owner.ScratchBytes);
+        return bytes < available ? bytes : available;
+    }
+
     internal static long Receive(State* state, uint index, ulong address, ulong requested, ulong flags)
     {
         long copied = SnapshotReceive(state, index, requested, flags);
@@ -720,8 +731,12 @@ public static unsafe partial class LinuxSocketServices
             return policy;
         if (bytes == 0)
             return 0;
+        // Validate the entire original offer, including tails outside scratch
+        // or available TCP space, before narrowing the payload copy.
+        if (!LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, state->Descriptors->Owner.User))
+            return Fault;
         var a = state->Descriptors->Owner;
-        uint wanted = (uint)(bytes < a.ScratchBytes ? bytes : a.ScratchBytes);
+        uint wanted = SendCopyBytes(state, index, bytes);
         if (!Input(state, address, a.Scratch, wanted))
             return Fault;
         return SendCopied(state, index, wanted);
@@ -793,7 +808,7 @@ public static unsafe partial class LinuxSocketServices
         if (total == 0)
             return 0;
         var a = state->Descriptors->Owner;
-        uint wanted = total < a.ScratchBytes ? total : a.ScratchBytes, copied = 0;
+        uint wanted = SendCopyBytes(state, index, total), copied = 0;
         for (uint i = 0; i < header[3] && copied < wanted; i++)
         {
             uint bytes = (uint)(vectors[i * 2 + 1] < wanted - copied ? vectors[i * 2 + 1] : wanted - copied);

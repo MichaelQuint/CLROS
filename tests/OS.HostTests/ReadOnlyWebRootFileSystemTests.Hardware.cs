@@ -14,6 +14,7 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
         internal byte* Data;
         internal ulong Capacity, Descriptor, Available, Used, Sector;
         internal uint Produced;
+        internal uint DataOffset;
         internal ushort Selected, Size, Enabled, ConfigVector, QueueVector;
         internal byte Status;
         internal bool Bus, Pending;

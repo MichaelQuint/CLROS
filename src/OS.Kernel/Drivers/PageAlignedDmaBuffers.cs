@@ -67,6 +67,26 @@ public static unsafe class PageAlignedDmaBuffers
     }
 
     public static DmaBufferStatus TryGiveToDevice(DmaBufferPool* pool, DmaBufferToken token) => Transition(pool, token, DmaBufferOwnership.Cpu, DmaBufferOwnership.Device);
+
+    /// <summary>Inspect the exact retained generation, ownership and complete
+    /// CPU/physical/device range in the serialized pool. This grants no hardware
+    /// mapping, completion or release authority and changes nothing. Stale tokens,
+    /// changed extents/domains and unexpected ownership return explicit failures.</summary>
+    public static DmaBufferStatus ValidateAllocation(DmaBufferPool* pool, DmaBufferAllocation allocation, DmaBufferOwnership expected)
+    {
+        DmaBufferStatus status = Find(pool, allocation.Token, out DmaBufferSlot* slot);
+        if (status != DmaBufferStatus.Success)
+            return status;
+        if (slot->Owner != expected)
+            return DmaBufferStatus.InvalidOwnership;
+        if (pool->Window.TrySlice(slot->FirstPage * 4096UL, slot->Pages * 4096UL, out var range) != DmaAddressStatus.Success)
+            return DmaBufferStatus.InvalidPool;
+        var original = allocation.Range;
+        return original.IsInitialized && range.CpuVirtualAddress == original.CpuVirtualAddress &&
+            range.PhysicalAddress == original.PhysicalAddress && range.DeviceAddress == original.DeviceAddress &&
+            range.ByteLength == original.ByteLength && range.Offset == original.Offset &&
+            range.DeviceAddressWidth == original.DeviceAddressWidth ? DmaBufferStatus.Success : DmaBufferStatus.InvalidToken;
+    }
     public static DmaBufferStatus TryReturnToCpu(DmaBufferPool* pool, DmaBufferToken token) => Transition(pool, token, DmaBufferOwnership.Device, DmaBufferOwnership.Cpu);
     public static DmaBufferStatus TryRelease(DmaBufferPool* pool, DmaBufferToken token)
     {

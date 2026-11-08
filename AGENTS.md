@@ -43,19 +43,19 @@ through Linux syscall frames or force internal calls across the hosted PAL ABI.
 
 ## Scope and ownership
 
-PR814 covers M04-026/#813, the C# refactor and measured file-serving repairs.
-The development owner runs the compiler, native and VM checks and reviews the
-original evidence. The documentation owner prepares the README, agent guides,
-subsystem updates and release record in a separate checkout. Coordinate the
-integration window before changing any input to a running qualification.
-The [phase contract](work/rc3-whpx-qualification.md) defines the required
-results and the point at which to merge and verify canonical `master`.
-The November 6 closeout selects qualified runtime `2e81ee3a` plus
-documentation/metadata updates and reports CLROS TCG as incomplete under the
-unchanged 30-minute guest limit. Preserve the later optimization and decoder
-work outside the release. After verified delivery and recoverable cleanup,
-stop the helper, pause the broader development goal and start no next phase.
-The [closeout record](done/step1790.md) owns the delivery scope and retained work.
+PR824 is the finite five-area HTTP performance phase: preserved refactor,
+bounded socket copies, readonly DMA, scoped HPET sampling and TCP flight. The
+sole implementation owner uses one isolated producer and serializes all builds,
+native and guest execution. No implementation subagent or standing helper is
+part of this phase. Consult the expert only for one concrete bounded blocker.
+The [phase contract](work/http-performance-phase.md) and
+[validation map](work/http-performance-validation.md) define its qualification,
+retained-source evidence, delivery and stopping boundary. Documentation/metadata
+after the frozen source must be identified separately. PR814 and
+[Step1790](done/step1790.md) retain their historical accepted baseline.
+After verified commit/push/review/merge, canonical master parity and recoverable
+preservation of ignored evidence and unfinished work, stop. Keep TCG incomplete
+under its unchanged 30-minute limit; begin no PROD/DEV or further performance phase.
 
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
@@ -78,7 +78,7 @@ prerequisites; it does not authorize activation or dependency/issue closure.
 - Keep first-party kernel/std/app source C#. Do not commit C/C++/headers/assembly.
 - Reference adaptation needs pinned provenance, permission, license and file-hash
   review. Build upstream native dependencies externally as guest package inputs.
-- Use C#14 and the exact .NET11 SDK/runtime/ILC pins. `global.json` and the host
+- Use C# 14 and the exact .NET 11 SDK/runtime/ILC pins. `global.json` and the host
   requirements are authoritative. Restore a missing pin from verified provenance;
   do not silently upgrade, roll forward or weaken the pin to use an installed SDK.
 - Prefer the simplest concrete implementation. Add shared BCL-like behavior to
@@ -155,14 +155,15 @@ commands/producer identities, results, originals/failures, limitations and next
 dependencies. After each 5–10 issue batch, audit README and all first-party guides
 and docs; update every affected statement, canonical record, parent checklist and
 Gitea summary/comment. Commit, push, review and merge verified scoped work, read
-back remote/master parity, and continue only the authorized scope. PR814 ends
+back remote/master parity, and continue only the authorized scope. PR824 ends
 at its explicit clean-stop boundary.
 
-PR812 closed the first-ten read phase at [step1672](done/step1672.md). For PR814,
-finish the agreed checks, reconcile the published evidence and tracker, review
-and merge the intended commits, then verify them and the final documentation on
-canonical `master`. Follow the phase contract for recoverable cleanup and the
-development pause. The PROD/DEV project split and system stats have a separate
+PR812 closed the first-ten read phase at [step1672](done/step1672.md).
+PR814 closed at [step1790](done/step1790.md). For PR824, post actual evidence,
+reconcile exact dependencies and open broader criteria, review/merge only the
+qualified scope, and verify canonical master contains the intended code and docs.
+Preserve failures and all ignored evidence before recoverable cleanup, then stop.
+The PROD/DEV project split and system stats remain a separate
 [milestone](http://192.168.4.35:3000/admin/CLROS/milestone/21).
 
 Stage only intended files. Never use `git reset --hard` or discard unrelated

@@ -1,6 +1,25 @@
 # Workload Profiles ADR
 
-Current PR814 qualification is tracked in the
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Bounded flight is explicit in continuing service, Full018, Timing018 and quiet
+serving; the larger readonly DMA layout is explicit in Full/Timing/quiet. Legacy
+single-flight and one-page callers remain. Thirteen actual native profiles have
+source-specific proof joins; only 11 prepared activation scopes are admitted.
+Nineteen retained originals keep their actual sources and three quiet candidate
+boots use 6a700fe1. Timing and quiet stops do not qualify browser/natural cleanup.
+There is no ordinary-boot default, write, SQLite, sustained-service or provider
+expansion. Broader Gate14 and PROD/DEV milestone21 remain open.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+Historical PR814 qualification is tracked in the
 [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 Historical results below retain their original source, runtime, backend and
 launch settings.

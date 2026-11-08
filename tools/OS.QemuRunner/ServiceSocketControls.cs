@@ -19,12 +19,14 @@ public sealed partial class ServiceSocketControls : IDisposable
 {
     private const string Request = "GET /healthz HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n\r\n";
     private readonly TcpListener[] reservations;
+    private readonly bool boundedFlight;
     private readonly CancellationTokenSource lifetime = new();
     private readonly object lifecycle = new();
     private Task<Report>? completion;
     private int started, disposed;
-    public ServiceSocketControls()
+    public ServiceSocketControls(bool boundedFlight = false)
     {
+        this.boundedFlight = boundedFlight;
         List<TcpListener> acquired = [];
         try
         {
@@ -120,9 +122,9 @@ public sealed partial class ServiceSocketControls : IDisposable
                 }
             }
 
-            async Task<byte[]> Send(Flow flow, uint sequence, uint ack, byte flags, ushort window, string payload = "", string? tag = null, bool forward = true)
+            async Task<byte[]> Send(Flow flow, uint sequence, uint ack, byte flags, ushort window, string payload = "", string? tag = null, bool forward = true, bool mss = false)
             {
-                byte[] frame = ContinuingTcpScenario.Write(new(false, (ushort)flow.Port, sequence, ack, flags, window, payload), peer);
+                byte[] frame = ContinuingTcpScenario.Write(new(false, (ushort)flow.Port, sequence, ack, flags, window, payload, Mss: mss, MaximumSegmentSize: 32), peer);
                 await frames.InjectServiceFrameAsync(frame, tag ?? flow.Name + "." + (++flow.Writes).ToString(CultureInfo.InvariantCulture), forward).WaitAsync(token).ConfigureAwait(false);
                 return frame;
             }
@@ -130,7 +132,7 @@ public sealed partial class ServiceSocketControls : IDisposable
             async Task<Seen> Syn(Flow flow, ushort window)
             {
                 flow.Started = DateTimeOffset.UtcNow;
-                await Send(flow, flow.Initial, 0, 2, window).ConfigureAwait(false);
+                await Send(flow, flow.Initial, 0, 2, window, mss: boundedFlight && flow.Port == healthyPort).ConfigureAwait(false);
                 Seen reply = await Next(flow.Port).ConfigureAwait(false);
                 Need(reply.Flags == 0x12 && reply.Ack == flow.Next && reply.Payload.Length == 0, "control SYN ACK");
                 flow.Server = unchecked(reply.Sequence + 1);
@@ -148,6 +150,20 @@ public sealed partial class ServiceSocketControls : IDisposable
             void Copy(Flow flow, Seen packet)
             {
                 uint relative = unchecked(packet.Sequence - flow.Server);
+                if (boundedFlight && flow.Port == healthyPort)
+                {
+                    Need(packet.Ack == flow.Next && (ulong)relative + (uint)packet.Payload.Length <= (uint)flow.Response.Length, "control flight stream sequence");
+                    for (int i = 0; i < packet.Payload.Length; i++)
+                    {
+                        int at = checked((int)relative + i);
+                        Need(!flow.Present[at] || flow.Response[at] == packet.Payload[i], "control flight retransmission");
+                        flow.Response[at] = packet.Payload[i];
+                        flow.Present[at] = true;
+                    }
+                    while (flow.Received < flow.Response.Length && flow.Present[flow.Received])
+                        flow.Received++;
+                    return;
+                }
                 Need(packet.Ack == flow.Next && relative <= (uint)flow.Received && (ulong)relative + (uint)packet.Payload.Length <= (uint)flow.Response.Length, "control stream sequence");
                 for (int i = 0; i < packet.Payload.Length; i++)
                 {
@@ -245,6 +261,14 @@ public sealed partial class ServiceSocketControls : IDisposable
             await Send(persist, persist.Next, unchecked(persist.Server + 1), 0x10, 8192, tag: "persist.reopen.lost", forward: false).ConfigureAwait(false);
             var healthy = new Flow(healthyPort, 0xfffffe00, "healthy");
             await BeginHttp(healthy, 8192).ConfigureAwait(false);
+            Flight? flight = null;
+            if (boundedFlight)
+                flight = await ExerciseFlightAsync(healthy, () => Next(healthy.Port),
+                    async (ack, tag) =>
+                    {
+                        await Send(healthy, healthy.Next, ack, 0x10, 8192, tag: tag).ConfigureAwait(false);
+                    },
+                    packet => Copy(healthy, packet), token).ConfigureAwait(false);
             HttpExchange health = await FinishHttp(healthy).ConfigureAwait(false);
             Seen secondProbe = await Probe(persist).ConfigureAwait(false);
             await Send(persist, persist.Next, unchecked(persist.Server + 2), 0x10, 8192, tag: "persist.reopen.fresh").ConfigureAwait(false);
@@ -252,7 +276,7 @@ public sealed partial class ServiceSocketControls : IDisposable
             Poll();
             Need(await WaitForUnreadCloseAsync(serialPath, unreadFlow.Port, unchecked(unreadFlow.Server + (uint)unreadFlow.Received + 1), unchecked(unreadFlow.Initial + 1 + (uint)Request.Length), token).ConfigureAwait(false) == unread.CloseRow, "control unread close changed");
             Need(queued.Values.All(queue => queue.Count == 0), "control unexpected trailing packet");
-            return new("clros.nativeaot.service.controls.v2", pendingPort, first.Initial, second.Initial, firstSyn.Ordinal, secondSyn.Ordinal, firstProbe.Ordinal, secondProbe.Ordinal, resumed, health, unread, Array.AsReadOnly(observed.ToArray()));
+            return new(boundedFlight ? "clros.nativeaot.service.controls.v3" : "clros.nativeaot.service.controls.v2", pendingPort, first.Initial, second.Initial, firstSyn.Ordinal, secondSyn.Ordinal, firstProbe.Ordinal, secondProbe.Ordinal, resumed, health, unread, Array.AsReadOnly(observed.ToArray()), flight);
         }
         catch
         {

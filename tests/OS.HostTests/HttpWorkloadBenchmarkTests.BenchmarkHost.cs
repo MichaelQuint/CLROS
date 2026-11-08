@@ -18,12 +18,14 @@ internal static partial class HttpWorkloadBenchmarkTests
         internal int Launches, Port;
         internal bool Joined, OwnerCancelled;
         private readonly string evidence, webroot, mode;
+        private readonly bool quiet;
         private readonly WebRootDiskInventory.Inspection inventory;
 
-        internal BenchmarkHost(string root, WebRootDiskInventory.Inspection inventory, string mode)
+        internal BenchmarkHost(string root, WebRootDiskInventory.Inspection inventory, string mode, bool quiet = false)
         {
             this.inventory = inventory;
             this.mode = mode;
+            this.quiet = quiet;
             evidence = Fresh(root);
             webroot = Path.Combine(evidence, "wwwroot");
             Directory.CreateDirectory(webroot);
@@ -94,7 +96,9 @@ internal static partial class HttpWorkloadBenchmarkTests
             try
             {
                 await app.StartAsync(cancellation);
-                await File.WriteAllTextAsync(Serial, "M10_018_LISTENING synthetic-host-only\r\n", cancellation);
+                await File.WriteAllTextAsync(Serial, quiet ?
+                    "CLROS_HTTP_BENCH_READY\r\ninfo: Microsoft.Hosting.Lifetime[14]\r\n      Now listening on: http://0.0.0.0:8080\r\n" :
+                    "M10_018_LISTENING synthetic-host-only\r\n", cancellation);
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
                 throw new InvalidOperationException("unreachable_host_lifetime");
             }

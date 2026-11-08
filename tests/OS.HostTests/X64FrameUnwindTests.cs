@@ -559,21 +559,39 @@ internal static unsafe partial class X64FrameUnwindTests
         for (int i = 0; i < 64; i++)
             _ = f.Invoke(input);
         var before = f.Snapshot();
-        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        // Match the other host allocation fixtures: exclude collection-time
+        // counter accounting, while still counting every real allocation.
+        Require(GC.TryStartNoGCRegion(1024 * 1024, disallowFullBlockingGC: false), "allocation measurement region admission");
+        long allocated;
         int successes = 0;
-        for (int i = 0; i < 64; i++)
+        try
         {
-            if (f.Invoke(input).Succeeded)
-                successes++;
-            if (f.Invoke(input, stackBytes: 0).Succeeded)
-                successes++;
+            long positiveBefore = GC.GetAllocatedBytesForCurrentThread();
+            byte[] positive = AllocationCounterPositive();
+            long positiveBytes = GC.GetAllocatedBytesForCurrentThread() - positiveBefore;
+            GC.KeepAlive(positive);
+            Require(positiveBytes == 64, "allocation counter retains a real 37-byte array");
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 64; i++)
+            {
+                if (f.Invoke(input).Succeeded)
+                    successes++;
+                if (f.Invoke(input, stackBytes: 0).Succeeded)
+                    successes++;
+            }
+            allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
         }
-
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        finally
+        {
+            GC.EndNoGCRegion();
+        }
         f.Unchanged(before);
         Require(successes == 64 && allocated == 0, $"zero allocated bytes for success and failure successes={successes} allocatedBytes={allocated}");
         Console.WriteLine("CLROS_ONE_FRAME_UNWIND_HOST allocatedBytes=0 iterations=64 backingUnchanged=true liveRegisters=false");
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static byte[] AllocationCounterPositive() => new byte[37];
 
     private static void Success(Fixture f, X64UnwindContext input, X64UnwindContext expected, ulong slot, ulong frame, bool epilog, string why)
     {

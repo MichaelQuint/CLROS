@@ -15,11 +15,11 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
         private static long epoch;
         internal readonly byte* Arena;
         private readonly uint arenaCapacity;
-        private readonly byte* blockBacking = (byte*)NativeMemory.AlignedAlloc(4096, 4096);
+        private readonly byte* blockBacking = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
         internal byte* Data => blockBacking;
         internal readonly Block.State* Device = (Block.State*)NativeMemory.AllocZeroed((nuint)sizeof(Block.State));
         internal readonly DmaBufferPool* Pool = (DmaBufferPool*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferPool));
-        private readonly DmaBufferSlot* dmaSlot = (DmaBufferSlot*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferSlot));
+        private readonly DmaBufferSlot* dmaSlot = (DmaBufferSlot*)NativeMemory.AllocZeroed(3, (nuint)sizeof(DmaBufferSlot));
         private readonly Hardware* hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
         private readonly GCHandle diskHandle;
         internal bool CompleteOnPoll
@@ -42,7 +42,7 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
         private readonly uint dataReadSectors;
         internal uint UsedArenaBytes => arenaAt;
         internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2,
-            Block.ObservationAccess observation = default, uint dataReadSectors = 1, uint directoryCacheSlots = 0, uint chainCacheSlots = 0)
+            Block.ObservationAccess observation = default, uint dataReadSectors = 1, uint directoryCacheSlots = 0, uint chainCacheSlots = 0, bool largeReads = false)
         {
             this.dataReadSectors = dataReadSectors;
             DirectoryCacheSlots = directoryCacheSlots;
@@ -51,14 +51,16 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
             arenaCapacity = slots == 2 ? (uint)ArenaBytes : 1048576U;
             Arena = (byte*)NativeMemory.AlignedAlloc(arenaCapacity, 4096);
             new Span<byte>(Arena, (int)arenaCapacity).Clear();
-            new Span<byte>(Data, 4096).Clear();
+            new Span<byte>(Data, 12288).Clear();
             Disk = new(clusters, collision);
             ulong lifetime = (ulong)Interlocked.Increment(ref epoch);
-            HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
-            HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, dmaSlot, 1, lifetime));
+            uint dmaPages = largeReads ? 3U : 1U;
+            HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, dmaPages * 4096UL, 64, out var window));
+            HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, dmaSlot, dmaPages, lifetime));
             diskHandle = GCHandle.Alloc(Disk);
             hardware->DiskHandle = GCHandle.ToIntPtr(diskHandle);
             hardware->Data = Data;
+            hardware->DataOffset = largeReads ? 4096U : 512U;
             hardware->Capacity = Disk.Capacity;
             hardware->Status = 11;
             PciSizedBar* bars = stackalloc PciSizedBar[6];
@@ -80,6 +82,7 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
                 NotifyMultiplier = 4,
                 ResetLimit = 3,
                 Pool = Pool,
+                UseLargeReadLayout = largeReads,
                 Epoch = lifetime,
                 NegotiatedFeatures = BoundedVirtioFeatures.Version1,
                 ExpectedCapacity = Disk.Capacity,

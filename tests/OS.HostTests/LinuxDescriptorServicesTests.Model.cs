@@ -11,6 +11,7 @@ internal static unsafe partial class LinuxDescriptorServicesTests
     {
         public LinuxMemoryServices.Admission Memory;
         public uint InputCopies, OutputCopies, SinkCalls, SinkBytes, Channel, FailInputAt, FailOutputAt, MaximumInputBytes;
+        public ulong InputBytes;
         public bool FailOutput, FailSink;
         public byte* RequiredOutputSource;
         public fixed byte Sink[8192];

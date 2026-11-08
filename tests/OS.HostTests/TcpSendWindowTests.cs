@@ -625,7 +625,14 @@ internal static unsafe partial class TcpSendWindowTests
         HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.Handshake));
     }
 
-    private static ulong Clock(void* context) => ((Hardware*)context)->Now;
+    private static ulong Clock(void* context)
+    {
+        var hardware = (Hardware*)context;
+        hardware->ClockCalls++;
+        ulong now = hardware->Now;
+        hardware->Now += hardware->AdvanceOnClock;
+        return now;
+    }
     private static byte Send(void* context, byte* bytes, uint length)
     {
         var hardware = (Hardware*)context;

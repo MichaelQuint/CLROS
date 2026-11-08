@@ -30,8 +30,8 @@ integrated app combines the Minimal API backend, Blazor frontend and SQLite
 through `Microsoft.Data.Sqlite`, including recovery after restart. The current
 tests deliberately end; they do not prove an indefinitely running service.
 Writes, persistent logs/uploads, SQLite and
-[#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified, and
-development is paused. The complete local single-app Gate 14 remains open;
+[#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified.
+This finite performance phase does not qualify those capabilities. The complete local single-app Gate 14 remains open;
 CLROS is not cloud-ready or production-ready. A public GitHub update and live
 cloud demo are planned after the corresponding capabilities are qualified.
 
@@ -125,7 +125,56 @@ not additional capabilities claimed by this documentation update.
 
 <!-- Keep development updates here, below the project introduction. -->
 
-### PR814 release and current stopping point
+### PR824 combined HTTP performance phase
+
+The complete **2,009,369-byte file takes 7.390 seconds before and 6.124 seconds
+after this phase**, using the median of three boot medians: **17.1% less transfer
+time**. The three candidate medians are below all three baseline medians.
+This measures the five changes together: the preserved refactor, bounded socket
+copies, TCP flight, HPET observations and larger read-only DMA transfers.
+[Step1792](done/step1792.md) records qualification, hashes, first-sequence results,
+header timings, per-boot distributions, failures and limitations.
+
+Each version uses three independent boots with one vCPU and 256 MiB, the same
+pinned QEMU, firmware, application and file inputs, and one first sequence plus
+ten warm sequences per boot. All **528 response bodies** match their expected
+entities. Warm per-boot medians below are **milliseconds**, measured from request
+start to complete body arrival. Client file writes and flushes are separate.
+First sequences are reported separately in the step; cold caches are not proven.
+
+| Request | Before: boots 1 / 2 / 3, ms | After: boots 1 / 2 / 3, ms |
+| --- | ---: | ---: |
+| Complete file | 7,432.599 / 7,390.344 / 7,386.146 | 6,123.763 / 6,151.566 / 6,100.425 |
+| Small JSON API | 57.810 / 56.609 / 58.626 | 53.647 / 53.628 / 54.110 |
+| File headers (HEAD) | 155.277 / 151.762 / 152.854 | 146.482 / 144.364 / 143.514 |
+| 64 KiB range | 484.849 / 483.018 / 504.297 | 417.674 / 413.308 / 414.510 |
+| Complete file alongside API | 7,456.390 / 7,384.644 / 7,352.471 | 6,113.270 / 6,139.099 / 6,133.268 |
+| API alongside complete file | 62.143 / 63.273 / 61.937 | 59.197 / 58.664 / 59.462 |
+| Concurrent pair elapsed | 7,456.390 / 7,384.644 / 7,352.471 | 6,113.270 / 6,139.099 / 6,133.268 |
+
+Frozen source `6a700fe1` passes **7,838 unfiltered host checks**, with unchanged
+inputs and zero reuse. Thirteen current native profiles retain actual layout,
+stack, ABI and ownership proofs. Functional and expected-fault originals include
+healthy and truncated HTTP/Blazor cases with guest cleanup; retained originals
+keep their exact source identities. Quiet timing owners deliberately stop guests
+and do not prove browser startup or natural cleanup.
+
+The first candidate boot failed the unchanged firmware-exit startup limit. Its
+cause remains unproven; later complete boots supply serving timings conditional
+on successful startup. One complete baseline observation is retained from before
+that failure. A diagnostic launcher overwrote the failed boot's serial/PCAP:
+serial bytes were recovered against a previously recorded hash, while the
+original PCAP's byte provenance is lost and excluded from acceptance. The step
+and [delivery receipt](http://192.168.4.35:3000/admin/CLROS/pulls/824#issuecomment-25406)
+record that limitation and the intact RAM/QMP, stderr, process and wrapper records.
+
+This finite phase ends after verified delivery and recoverable cleanup. Broader
+baseline/RTT/p99/CPU criteria, Gate 14, TCG, writes, persistence, SQLite, sustained
+service, provider/production readiness and PROD/DEV remain outside this acceptance.
+The historical Alpine and timer/cache comparisons below keep their original
+scope. Alpine was not rerun, and no individual change receives a causal speed claim.
+
+### Historical PR814 release and stopping point
 
 PR814 is merged. Its qualified runtime source, `2e81ee3a`, passed the
 **7,789-check Full host suite** with unchanged inputs and zero reuse. It includes
@@ -141,20 +190,20 @@ file to check the expected failure behavior. The four Full018 runs each
 completed 120 HTTP and 49 browser responses with guest cleanup; A2 restores
 A1's image and response bodies.
 
-The later `72784936` optimization and isolated decoder extraction remain
-outside this release. Development stays paused. The
+The later `72784936` optimization and isolated decoder extraction were excluded
+from PR814; the qualified PR824 phase above now integrates their retained work. The
 [qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
 and [closeout record](done/step1790.md) define the release boundary, retained
 failures and unfinished work.
 
-### Latest file-serving performance: CLROS versus Alpine
+### Historical November6 file-serving comparison: CLROS versus Alpine
 
 **CLROS takes about seven seconds to deliver the complete test file. Alpine
 takes about four hundredths of a second in the same hardware-accelerated
 comparison.** CLROS is much faster than its earlier timer/cache baseline,
 but there is still a large gap to Alpine.
 
-These are the latest completed measurements retained for PR814, documented at
+These are the historical completed measurements retained for PR814, documented at
 the November 6, 2026 closeout. They measure runtime source `2e81ee3a`.
 They were not rerun on the later Visual Studio build-tooling commit
 `2e801e54`, or for this README update.
@@ -544,13 +593,13 @@ Historical Step1635 diagnostic checkpoint: a generated-driver child span partiti
 
 [Step1593](done/step1593.md) Step1593 repairs an accidental writable-helper dependency in the new readonly collision test using its existing independent VFAT encoder; the scoped readonly producer now passes33FS+5profile+5source-admission+17backlog controls with a clean24.05s nonincremental graph. The first Linux log/upload writer publishes but fails exit134 in SHA256 reporting after actual writes and in-process readback; the separate verifier never launches. Expert-guided crypto-report removal remains isolated preparation; root holds the next native read lease.
 
-[Step1592](done/step1592.md) Step1592 batches internal FAT32 name lookup across at most16 physical entries from one loaded512B directory sector. It preserves every VFAT/collision/budget check and stops at device I/O or component boundaries.All33 filesystem controls pass in the combined root branch; normal graph20.48s/0warnings/errors. A2,009,369B fragmented-file control confirms retained8KiB range reads perform no repeated metadata walks. Full r04 remains failed; fresh source-matched native A/B/browser originals and stable full/ancestors remain required.
+[Step1592](done/step1592.md) Step1592 batches internal FAT32 name lookup across at most 16 physical entries from one loaded512B directory sector. It preserves every VFAT/collision/budget check and stops at device I/O or component boundaries.All33 filesystem controls pass in the combined root branch; normal graph20.48s/0warnings/errors. A2,009,369B fragmented-file control confirms retained8KiB range reads perform no repeated metadata walks. Full r04 remains failed; fresh source-matched native A/B/browser originals and stable full/ancestors remain required.
 
 [Step1591](done/step1591.md) Step1591 integrates guarded source5 writable thread continuations on the isolated host branch:13 new controls plus87 affected regressions pass; the latest app7, global descriptor19, image20 and continuing FAT70 controls also pass. Native writable activation and persistence remain pending. Full DiskA r04 atc3dbab92 failed the unchanged1700-second HTTP matrix after83 responses/3,946,410 body bytes; its CoreLib GET succeeded, but no complete browser or cleanup result follows. The expert identified loaded-directory parser turns as the next read repair. Both implementation agents remain active.
 
 [Step1590](done/step1590.md) The fresh c3dbab92 ExitPending r03 passes its complete original wrapper:8calls, one abandoned request,0copied data sectors, actual reset retirement, frozen copy count, final memory restoration and fresh cleanup clock. Full DiskA r04 remains in progress at the same source; full r01-r03 remain failed. Step1590 also creates M10-027/#809 for real log/upload measurement and later persistence, claims four agent paths, and extends root source5 scheduler/source-pin ownership before edits. No read-batch, Blazor or write gate closes.
 
-[Step1589](done/step1589.md) preserves full DiskA r03 as failed:64 HTTP responses, then the2,009,369-byte CoreLib request hits its unchanged240-second header timeout after214.996 seconds of repeated FAT metadata walks. Cached chain validation now advances at most64 visits per Pump while retaining separate real I/O turns. ExitPending r02 reaches guest cleanup but its original wrapper fails because the retained network-end clock predates memory restoration. A new fresh cleanup-end witness and strict phase bounds require another original; neither failure is reclassified. Host-only writable work continues separately.
+[Step1589](done/step1589.md) preserves full DiskA r03 as failed:64 HTTP responses, then the2,009,369-byte CoreLib request hits its unchanged 240-second header timeout after214.996 seconds of repeated FAT metadata walks. Cached chain validation now advances at most64 visits per Pump while retaining separate real I/O turns. ExitPending r02 reaches guest cleanup but its original wrapper fails because the retained network-end clock predates memory restoration. A new fresh cleanup-end witness and strict phase bounds require another original; neither failure is reclassified. Host-only writable work continues separately.
 
 [Step1588](done/step1588.md) integrates the continuing writable block, FAT mutation planner/engine, deterministic data fixture and provider in the isolated writable-thread-waits branch. The combined host build and192 distinct focused controls pass; source5 waits, native activation, persistence and SQLite qualification remain pending. Both implementation agents continue the bounded bootstrap and global descriptor slices.
 

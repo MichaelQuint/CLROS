@@ -69,8 +69,8 @@ public static partial class EfiContracts
     } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "67968cab2553aa41732814a0aff6feee0c0c8eb0e3f25fecfa277aa1d911b2d1";
-    public const string CanonicalProjectSha256 = "0b0389b8616cf026d4e901d1fb74bdefa4baf0e266bc4766f5b62202a7d19377";
+    public const string ProjectSourceSha256 = "cb549207a2d14eaa45c70ff34dab5b5c905a915f258b2bf7eafe1a3d25846636";
+    public const string CanonicalProjectSha256 = "60e1737feae8a5f611898c1267dffb0c28f3cb7c78f8f9529d0b451ff590cd87";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
     public const string EfiEntrySourceSha256 = "69179d61fbef4ad59d748b72fd7e803005a2703b2c3f4ac02b807612d0f3d8db";
@@ -933,6 +933,7 @@ public static partial class EfiContracts
         "..\\OS.Kernel\\Net\\TcpSendWindow.Status.cs|Net\\TcpSendWindow.Status.cs",
         "..\\OS.Kernel\\Net\\TcpSendWindow.Owner.cs|Net\\TcpSendWindow.Owner.cs",
         "..\\OS.Kernel\\Net\\TcpSendWindow.Close.cs|Net\\TcpSendWindow.Close.cs",
+        "..\\OS.Kernel\\Net\\TcpSendWindow.Flight.cs|Net\\TcpSendWindow.Flight.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.cs|Net\\TcpTimeWaitTable.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.Status.cs|Net\\TcpTimeWaitTable.Status.cs",
         "..\\OS.Kernel\\Net\\TcpTimeWaitTable.Record.cs|Net\\TcpTimeWaitTable.Record.cs",

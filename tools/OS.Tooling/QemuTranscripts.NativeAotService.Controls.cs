@@ -56,7 +56,8 @@ public static partial class QemuTranscripts
     {
         var control = ServiceControlJson<ServiceSocketControls.Report>(controlsJson);
         var frames = ServiceControlJson<WebFrameControl.ServiceReport>(framesJson);
-        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
+        bool boundedFlight = control.Schema == "clros.nativeaot.service.controls.v3";
+        Need((boundedFlight ? control.Flight is not null : control.Schema == "clros.nativeaot.service.controls.v2" && control.Flight is null) && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
         int[] ports = [control.PendingPort, control.Persist!.Port, control.Healthy!.Port];
         Need(ports.All(port => port is >= 1024 and <= 65535) && ports.Distinct().Count() == 3 && frames.ControlledPorts!.SequenceEqual(ports) && started < ended && control.FirstClientSequence == 0xfffffff0 && control.SecondClientSequence == 0xfffff800, "service_control_selection");
         var session = frames.Session!;
@@ -135,6 +136,7 @@ public static partial class QemuTranscripts
         Need(pending[1].Sequence != pending[4].Sequence, "service_control_pending_isn");
         var persist = packets.Where(packet => packet.Port == control.Persist.Port).ToArray();
         var healthy = packets.Where(packet => packet.Port == control.Healthy.Port).ToArray();
+        long ignoredStaleAckRecord = boundedFlight ? ServiceFlightPackets(healthy, incoming, control.Flight!, frames) : 0;
         Need(persist.Length > 8 && healthy.Length > 8 && !persist[0].Outgoing && persist[0].Flags == 2 && persist[0].Sequence == 0xffffff00 && !healthy[0].Outgoing && healthy[0].Flags == 2 && healthy[0].Sequence == 0xfffffe00, "service_control_http_syn");
         var firstProbe = persist.SingleOrDefault(packet => packet.Ordinal == control.FirstProbeOrdinal);
         var secondProbe = persist.SingleOrDefault(packet => packet.Ordinal == control.SecondProbeOrdinal);
@@ -193,7 +195,7 @@ public static partial class QemuTranscripts
             RequestBytes = checkedHttp.RequestBytes + ServiceHex(control.Unread!.Http.RequestHex).Length,
             ResponseBytes = checkedHttp.ResponseBytes + ServiceHex(control.Unread!.Http.ResponseHex).Length
         };
-        return new(ordinary.ToArray(), Array.AsReadOnly(ports), checkedHttp, packets.Count, 2);
+        return new(ordinary.ToArray(), Array.AsReadOnly(ports), checkedHttp, packets.Count, 2, boundedFlight, ignoredStaleAckRecord);
     }
 
     internal static int InspectServiceRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, TextWriter output, NativeAotServiceProgram program, NativeAotServicePeer.Completion peer, ServiceRunnerContext context)
@@ -224,29 +226,33 @@ public static partial class QemuTranscripts
         int connections = http.Connections + controls.Http.Connections;
         int activeCloses = http.ServerActiveCloses + controls.Http.ServerActiveCloses;
         Need(fresh.Length == connections + 2 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[0]) == 3 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[1]) == 1 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[2]) == 1 && capture.Leaf.SocketAccepts == connections && capture.Leaf.SocketSent == (ulong)(http.ResponseBytes + controls.Http.ResponseBytes) && capture.Leaf.SocketReceived == (ulong)(http.RequestBytes + controls.Http.RequestBytes) && capture.Leaf.Transport.Transfers == activeCloses && capture.Leaf.Transport.Retired == activeCloses && capture.Leaf.Transport.CompactHighWater > 8 && capture.Envelope.Fresh == (ulong)fresh.Length, "service_packet_owner_join");
-        ServiceWireTotals(bytes, capture.Parent, capture.Envelope, raw);
+        ServiceWireTotals(bytes, capture.Parent, capture.Envelope, raw, controls.IgnoredStaleAckRecord);
         output.WriteLine($"SERVICE_CAPTURE calls={capture.Leaf.Protocol.Calls} clones={capture.Leaf.Protocol.Clones} reaped={capture.Leaf.Protocol.Reaped} connections={connections} pendingResets=2 transfers={capture.Leaf.Transport.Transfers} compactHighWater={capture.Leaf.Transport.CompactHighWater} randomRequests={capture.Leaf.Random.Requests} randomBytes={capture.Leaf.Random.GeneratedBytes} acceptance=pending");
         string counts = options.ServiceLifecycle ? $"ordinary={http.Connections - http.LifecycleConnections} lifecycle={http.LifecycleConnections} clientResets={http.ClientResets} clientFinCancels={http.CompleteCloses - http.ServerActiveCloses}" : $"ordinary={http.Connections}";
-        output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
+        Need(controls.BoundedFlight, "service_bounded_flight_required");
+        output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} boundedFlight=true lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
         return 0;
     }
 
-    private static void ServiceWireTotals(byte[] bytes, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw)
+    private static void ServiceWireTotals(byte[] bytes, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw, long ignoredStaleAckRecord = 0)
     {
-        _ = ReadServiceWireTotals(bytes, parent, envelope, raw, out ulong[] times);
+        _ = ReadServiceWireTotals(bytes, parent, envelope, raw, out ulong[] times, ignoredStaleAckRecord);
         Need(times.Length > 8 && times[8] - times[0] < 240_000_000, "service_packet_compact_reuse_before_expiry");
     }
 
     // Inputs are already checked by the complete packet/parent/leaf consumers.
     // Quota reuses the counters, while the positive wrapper retains FIN bounds.
-    private static ServiceNicAccountingInspection ReadServiceWireTotals(byte[] bytes, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw, out ulong[] closeTimes)
+    private static ServiceNicAccountingInspection ReadServiceWireTotals(byte[] bytes, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw, out ulong[] closeTimes, long ignoredStaleAckRecord = 0)
     {
+        Need(ignoredStaleAckRecord >= 0, "service_packet_stale_ack_record");
         int stage = 0;
         bool resolved = false;
         ulong peer = 0, received = 0, arp = 0, arpCopied = 0, tcpCopied = 0, ignored = 0;
         Dictionary<uint, ulong> closes = [];
         Dictionary<(uint Port, uint Sequence), Stack<int>> syns = [];
         HashSet<(uint Port, uint Ack, uint Sequence)> synAcks = [];
+        Dictionary<uint, (uint Ack, uint Sequence)> incomingAcks = [];
+        bool staleAckSeen = false;
         int ordinal = 0, firstSynAck = 0;
         for (int offset = 24; offset < bytes.Length;)
         {
@@ -311,6 +317,21 @@ public static partial class QemuTranscripts
                 continue;
             }
 
+            if (ordinal == ignoredStaleAckRecord)
+            {
+                // The complete v3 control model selected these original bytes.
+                // Independently require a bare ACK behind the preceding ACK on
+                // the same tuple, with no receive-sequence progress. This is
+                // Tx.OldAck -> LinuxSocketNetwork.Ignored, not a blanket offset.
+                Need(!outgoing && packet.Flags == 0x10 && packet.Payload.Length == 0 &&
+                    incomingAcks.TryGetValue(packet.Remote, out var prior) && prior.Sequence == packet.Sequence &&
+                    unchecked(prior.Ack - packet.Ack) is > 0 and < 0x80000000, "service_packet_stale_ack_record");
+                ignored++;
+                staleAckSeen = true;
+            }
+            else if (ignoredStaleAckRecord != 0 && !outgoing && (packet.Flags & 0x10) != 0)
+                incomingAcks[packet.Remote] = (packet.Ack, packet.Sequence);
+
             if (!outgoing && packet.Flags == 2)
             {
                 var key = (packet.Remote, packet.Sequence);
@@ -345,6 +366,7 @@ public static partial class QemuTranscripts
         int[] quietSyns = syns.Values.SelectMany(pending => pending).ToArray();
         Need(firstSynAck > 0 && quietSyns.Length <= 1600 && quietSyns.All(at => at < firstSynAck), "service_packet_quiet_syn_lifetime");
         ignored += (uint)quietSyns.Length;
+        Need(staleAckSeen == (ignoredStaleAckRecord != 0), "service_packet_stale_ack_record");
         string[] rows = ReadThreadingSerialLines(DecodeUtf8(raw));
         var peerRow = ReadRecord(rows.Single(row => row.StartsWith("M16_011_PEER ", StringComparison.Ordinal)), "M16_011_PEER", "mac:dec", "sent:dec", "received:dec", "start:dec", "end:dec");
         if (!(resolved && peer == peerRow["received"] && received == envelope.Received && arp == envelope.Arp && arpCopied == envelope.ArpCopied && tcpCopied == envelope.TcpCopied && ignored == envelope.Ignored && received - arp - ignored == envelope.Accepted))

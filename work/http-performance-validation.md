@@ -1,0 +1,186 @@
+# PR824 validation preparation and impact map
+
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The planned impact matrix below has now been executed within the exact scopes
+in the step. Full passes 7,838 checks with unchanged inputs and zero
+reuse. Thirteen current native publications/reviews and the 19-retained/3-current
+original map are independent of metadata added later. Six independently booted quiet observations rehash
+528 bodies (one complete baseline original is retained) with first observations separate from ten warm sequences. The frozen
+recipe/hash and all failed originals remain preserved. Earlier preparation
+instructions below are the contract and history, not an outstanding instruction
+to rerun acceptance.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+Status: managed preparation implemented, not a frozen candidate or qualification result. The sole
+producer and finite scope are in [the phase contract](http-performance-phase.md).
+All five runtime slices have focused host evidence. The service packet-control
+consumer is implemented and host-tested. The quiet matrix and retained baseline
+owners, typed dry-run recipes and input-copy manifests now have focused checks.
+Complete final scoped checks and commit/freeze before Full/native/VM.
+
+## Impact and required evidence
+
+| Changed domain | Affected paths/profiles | Required qualification |
+| --- | --- | --- |
+| Private adjacent disk audit sharing | Linux disk descriptor completion/progress; readonly and borrowed/writable consumers | Public invalid-page-table, foreign-owner, stale-generation and reentrancy controls remain. Original native read/close/reuse/cancellation paths must match the final source. No persistent validation authority. |
+| Capacity-aware socket copy | Scalar send/sendmsg through the Linux socket adapter | Full original ranges, including invalid tails, complete vector snapshots, error order, full/zero/partial results and callback failure remain. Exercise real HTTP and affected legacy socket/vector consumers. Copied-byte counts are a host mechanism result. |
+| Continuing readonly DMA | Explicit Full/Timing16-sector layout; continuing block/filesystem owners and final ordered-byte consumers | Actual three-page allocation/mappings/domains,8192-byte descriptor, completion lengths, one active request, corruption, fragmentation, partition/EOF edges, cancellation and exact reset/fence/scrub/release. Requests and sectors have separate units. |
+| Legacy DMA/layout consumers | Existing one-page block queue, package/disk and borrowed writable paths | Preserve4-sector ceiling and existing writable route. Added layout fields change structure layout even when large mode is off; review every emitted consumer and its backing/offset calculation. Source resemblance is insufficient. |
+| Scoped clock observations | TCP receive/ACK/close/retry and continuing block idle polling | HPET remains required. Actual callback/device boundaries retain fresh observations; normal send pump retains independent clock health. Preserve backward/overflow/expiry rejection, original deadlines and completion-before-timeout ordering. |
+| TCP retained state and bounded pumping | Every emitted TcpSendWindow/Network owner; legacy M07-026 and socket/epoll/vector/web descendants | Account for current owner/slot sizes and every caller, including legacy mode. Current metadata/ring validation, sequence wrap, pressure and exact cleanup must retain their contracts. Eight new-data frames per pump includes newly sequenced persist octets. |
+| Explicit bounded flight | M16-014 continuing service, Full018 and Timing018 | Current actual native layout/stack/ABI/ownership review; guest controls.v3, healthy HTTP/Blazor, natural cleanup, affected cancellation/close/reuse and concurrent service. No historical stack margin transfer. |
+
+Native review must preserve the current emitted tuple before another publication
+overwrites shared intermediate outputs. Join source/profile/tool/input hashes,
+object, PE/EFI, map, link/serializer evidence, type/field metadata and actual
+disassembly. Review helper/caller frames, fixed allocations, indirect providers,
+IRQ composition and complete owned call paths. A managed sizeof ceiling alone
+does not qualify the1024-byte native slot or any kernel stack.
+
+Full/Timing now reserve one4KiB control page plus8KiB data, matching DMA slot
+metadata after the complete range and18 evidence records. Review those actual
+allocations, all pointer arithmetic/mappings and cleanup. Keep legacy one-page
+callers distinct. TCP segment metadata is embedded in the owner, not an array
+allocated on a stack; extra pump passes repeat a bounded turn rather than
+authorizing recursion or larger enclosing polling budgets.
+
+## Original guest consumers
+
+Reuse the authenticated compiler/ancestor and disk scenario recipes listed in
+[the qualification record](rc3-whpx-qualification.md), selecting required
+profiles from actual changed compile links and emitted ownership/call paths.
+Its29/24/7 results retain their original source-specific scope; they do not
+automatically accept this candidate. Deduplicate identical publications/recipes,
+not distinct behavioral coverage. Do not restore old producer registrations or
+build in an archived evidence tree.
+
+Required disk/static coverage includes healthy DiskA/DiskB, truncated-file
+corruption, exact API/static bodies, browser/Blazor results and natural cleanup.
+Include affected M16 disk races and cancellation/close/reuse paths. Larger reads
+may change request counts; retain exact bytes, corruption rejection, physical
+sector totals and independently interpreted counter units.
+
+The existing M16-014 service runner now requests controls.v3. It preserves
+pending handshake resets, unread last-close/reset, two zero-window probes with
+one lost reopen and a concurrent healthy response. The healthy connection
+advertises32-byte MSS, withholds its first ACK until an exact timeout copy,
+requires two segments before advancing ACK, delivers the later segment to
+bounded host reassembly first, injects three duplicate ACKs, checks fast
+retransmit, then injects partial and stale ACKs and checks the exact16-byte
+suffix. The full original PCAP/injection verifier checks ordering, checksums,
+literal bodies/FINs and1s/2s minimum RTO intervals, independently of driver
+completion and timestamp claims. Existing64-injection/512-packet/45s limits
+remain. Its host mock timestamps and responses are expressly synthetic controls.
+Actual guest execution and process/source/native joins remain required.
+
+## Matched quiet measurement
+
+Baseline source is accepted runtime
+`2e81ee3abd1efbcfe6fa92233cd1449a4729ce70`; candidate is the eventual frozen
+combined phase. Run three independent WHPX boots for each on the same host,
+one vCPU and256MiB. Use retained identical package/assets and exact2,009,369-byte
+CoreLib target. Verify every body/hash and source/tool/native/process join.
+Keep first sequences separate from ten warm sequences and report per-boot
+medians for full file, API, headers,64KiB range and concurrent file/API. Keep
+normal browser/natural cleanup qualification separate from intentional-stop
+measurement owners. Report combined improvement and variability, with no
+individual causal attribution or sub-second guarantee.
+
+Known evidence routes, for read-only reuse rather than development:
+
+- `C:/Users/AI/.codex/worktrees/refactor-combined-r01/CLROS/artifacts/refactor-r01`
+  maps to retained evidence. `compiler-compat-acceptance-r01.json`, SHA256
+  `829ABD366646A4E86082585901D25CA667D22453659721979B7974A0BFFF0B4A`,
+  records the accepted2e compiler contexts.
+- `matched-current2e-whpx-boot01-r01` through boot03 contain historical matched
+  bodies/reports. Fresh baseline boots are still required for this comparison.
+- `quiet-serving-client-owner-r01/Program.cs` preserves authenticated source,
+  native, input, child and joined-client ownership. Its current contract is
+  specifically two full-file curl requests; it is not the required final
+  first-plus-ten full measurement matrix.
+- That quiet owner selects `EnableM10018ServingBenchmarkProbe`, implying Full,
+  with Trace/Summary/Timing disabled. Do not silently substitute another native
+  profile. Its earlier curl timeout is not authority to exceed this phase's
+  existing180-second per-request ceiling.
+- `HttpWorkloadBenchmark.RunAsync` already provides the strict first-plus-ten
+  API/health/HEAD/range/full/concurrent body consumers and180-second ceiling.
+  The explicit `-EnableM10018ServingBenchmarkProbe -HttpBenchmarkWarmSequences 10`
+  path now connects that existing client to the quiet profile, preserving its
+  eight-case order, first/ten-warm separation, joined clients, body files and
+  unchanged bounds. It invokes no browser and requires a joined, cancelled,
+  failure-free runner and stopped endpoint. Ordinary Full still requires its
+  original browser/natural-cleanup consumer.
+
+The sole bounded expert consultation identified `RetainedDiskTimingBenchmark`
+as the existing launch-ownership pattern. `RetainedServingBenchmark` now uses
+that pattern with a separate fixed2e authority chain; Timing selection was not
+relaxed, and `EfiVerification` remains unchanged. Its `--prepare` path validates
+and copies the Step1790 readback, accepted population/boot report, pinned launch/
+source/native evidence, all12 native leaves, exact64MiB raw DiskA, EFI, package,
+disassembly, firmware and published assets. It independently checks complete
+image/EFI/package/asset joins. An explicit artifacts-prefix mapping reads the
+physical recovery archive while retaining original historical path strings;
+no old live source/intermediate path is restored. Current host sources and
+producers are bound separately through runner/client join. The installed pinned
+QEMU stays at its original host location; its ELF/PE dependencies are not moved.
+
+Preparation `artifacts/performance-r01/baseline-capsule-preparation-r02` passes,
+binding70 private copies,7 current producer files and3724 current source files.
+Its binding SHA256 is
+`663D00F9128697C0E02D5977BEA86F94A9801FCD6188E250954B5C70FE4FEB06`.
+This is managed preparation only. It explicitly reports no fresh native
+publication or current-source EFI verification. Each actual baseline boot must
+use a new private directory and newly verify its authorities; this prepared
+directory is not a reused execution result.
+
+`work/Prepare-HttpPerformanceRecipes.ps1` imports affected ancestor inputs,
+creates canonical existing M16/network fixture packages, and checks every job
+through managed dry-run only. Successful preparation r04 contains13 native
+profile input snapshots,22 current original/diagnostic guest recipes and three
+explicit fresh retained-baseline commands. Source snapshots query the admitted
+project with the pinned SDK; no emitted/native or guest acceptance follows.
+The earlier recipe original failed at missing M16 WebRootFixture, before any
+activation; the corrected recipe supplies the existing DiskA/assets contract.
+
+The13 native selections are ordinary, legacy block, retained network, sockets,
+epoll, vectors, web, service, mechanical disk, writable layout, Full, Timing and quiet Full.
+Default selection still links five changed DMA files. Actual emitted code/data,
+callers and layouts must therefore be reviewed before treating unrelated
+compiler/GC/EH contexts as retained historical scope. If that review finds
+affected common emission, extend the frozen artifact/guest list with the
+existing cases; do not assert cross-profile native identity from source alone.
+
+Reuse the existing Alpine results as historical context unless current matching
+is demonstrated. Do not reopen TCG qualification or extend its1800-second limit.
+If combined results fail to improve beyond variability, preserve originals and
+make one bounded expert consultation; do not start another optimization phase.
+
+## Freeze and execution order
+
+1. Run final scoped checks and commit source/preparation. Regenerate the recipe
+   manifest with a clean tree, recording exact source and executable/input
+   identities. The script's dirty preparation flag must not be relabeled clean.
+2. Freeze one clean candidate. Build the complete HostTests graph, capture exact
+   producer/dependency/input revisions/hashes and run one unfiltered Full with
+   zero reuse and before/after guards. No documentation/source/tool mutation
+   during its ownership window.
+3. Publish the required native profiles serially and review actual tuples,
+   layouts, stack and ownership before guest activation.
+4. Execute affected original guest/browser/control profiles and the six matched
+   quiet boots, retaining wrappers, runner, guest outcomes and every failure.
+   A failed gate requires a concrete targeted correction before invalidated
+   gates rerun; never perform an unchanged retry loop.
+5. Reserve the final evidence step, reconcile canonical docs/README and scoped
+   tracker/PR824 dependencies, push/review/merge qualified work, read back
+   canonical master parity, preserve evidence/unfinished work and stop.
+
+Neither this plan nor a successful host selection grants Full, native, guest,
+browser, performance, Gate14, production or broader issue acceptance.

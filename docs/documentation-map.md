@@ -1,6 +1,24 @@
 # Documentation Map
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+The current phase and validation map now link the completed finite result and
+its immutable receipt/source map. PR814/Step1790 remain historical accepted
+baseline and incomplete-TCG closeout records. PR824 integrates the later retained
+optimization/decoder work with the other four scoped performance changes.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
 For build, evidence and status entry points, see the [documentation index](README.md).
+The [PR824 performance phase](../work/http-performance-phase.md) and its
+[validation preparation](../work/http-performance-validation.md) track the
+separately authorized five-change candidate; qualification remains pending.
 The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-results)
 tracks the qualified `2e81ee3a` runtime and the approved incomplete-TCG
 closeout. The later `72784936` optimization and isolated decoder work remain

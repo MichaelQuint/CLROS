@@ -76,7 +76,7 @@ public static unsafe class VirtioBlkQueueN0
     internal static VirtioBlkQueueStatus Configure(VirtioMappedRegion common, DmaBufferPool* dma,
         VirtioBlkQueueAccess a, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkQueueResult r,
         VirtioMappedRegion notify = default, VirtioMappedRegion device = default, ulong destination = 0,
-        ushort msixVector = 0xffff)
+        ushort msixVector = 0xffff, bool continuingRead = false)
     {
         ulong c = common.VirtualStart;
         if (a.BusMasterOff(a.Context) != 1)
@@ -98,7 +98,10 @@ public static unsafe class VirtioBlkQueueN0
         if (selected != 0 || enabled != 0 ||
             BoundedVirtqueueSize.Validate(VirtioBlkDmaLayout.QueueSize, maximum, out r.Size) != VirtqueueSizeStatus.Success)
             return VirtioBlkQueueStatus.InvalidQueue;
-        if (DMASafeRequestStatusDescriptorAvailableUsedRing.TryAllocate(dma, out allocation, out r.Layout) != VirtioBlkDmaStatus.Success)
+        var allocated = continuingRead
+            ? DMASafeRequestStatusDescriptorAvailableUsedRing.TryAllocateContinuingRead(dma, out allocation, out r.Layout)
+            : DMASafeRequestStatusDescriptorAvailableUsedRing.TryAllocate(dma, out allocation, out r.Layout);
+        if (allocated != VirtioBlkDmaStatus.Success)
             return VirtioBlkQueueStatus.DmaRejected;
         var range = r.Layout.Range;
         if (Overlap(c, common.Bytes, range.CpuVirtualAddress, range.ByteLength) ||

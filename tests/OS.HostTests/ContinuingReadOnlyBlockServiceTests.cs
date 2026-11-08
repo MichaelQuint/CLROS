@@ -557,8 +557,17 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
                 f.Hardware->ClockFailure = true;
             if (mode == 1)
                 f.Hardware->Now = 9;
+            if (mode == 3)
+            {
+                // No deadline exists while idle. The next actual request must
+                // sample and reject the failed clock before publishing anything.
+                uint clocks = f.Hardware->ClockCalls;
+                HostCheck.Equal(Block.Status.Idle, Poll(f.State, out _));
+                HostCheck.Equal(clocks, f.Hardware->ClockCalls);
+                HostCheck.True(f.State->Running && f.State->Submitted == 0);
+            }
             HostCheck.Equal(mode == 1 ? Block.Status.ClockRegressed : Block.Status.ClockFailed,
-                mode == 3 ? Poll(f.State, out _) : Submit(f.State, 1, out _));
+                Submit(f.State, 1, out _));
             HostCheck.True(f.State->RequiresCleanup && !f.State->Running);
             HostCheck.Equal(1UL, f.Pool->AllocatedMask);
             HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
@@ -1106,7 +1115,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
             sink->Bad |= payload != null || (value->Bytes != 0 && value->Bytes != sink->ExpectedBytes) || value->Sequence != state->Completed || !state->ReadPending;
         else if (value->Kind == Block.ObservationKind.CopyReady)
         {
-            sink->Bad |= payload != hardware->Data + 512 || value->Bytes != sink->ExpectedBytes || value->Sequence != state->Copied + 1 || !state->ReadReady;
+            sink->Bad |= payload != hardware->Data + hardware->DataOffset || value->Bytes != sink->ExpectedBytes || value->Sequence != state->Copied + 1 || !state->ReadReady;
             sink->Candidate = value->Sequence;
             if (payload != null)
                 for (int i = 0; i < sink->ExpectedBytes; i++)
@@ -1302,18 +1311,18 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
         {
             ushort index = *(ushort*)(h->Data + 130);
             if (!h->BusEnabled || h->Status != 15 || h->Enabled != 1 || h->Pending ||
-                h->Pool->AllocatedMask != 1 || index != unchecked((ushort)(h->AvailableSeen + 1)) || h->FencedIndex != index ||
+                h->Pool->AllocatedMask != h->DmaMask || index != unchecked((ushort)(h->AvailableSeen + 1)) || h->FencedIndex != index ||
                 *(ushort*)(h->Data + 132 + (h->AvailableSeen & 7) * 2) != 0 || *(ushort*)(h->Data + 128) != 1)
                 h->BadOrder = true;
             for (int i = 0; i < 3; i++)
             {
                 byte* p = h->Data + i * 16;
-                if (*(ulong*)p != DeviceBase + (i == 0 ? 256UL : i == 1 ? 512UL : 272UL) ||
+                if (*(ulong*)p != DeviceBase + (i == 0 ? 256UL : i == 1 ? h->DataOffset : 272UL) ||
                     *(uint*)(p + 8) != (i == 0 ? 16U : i == 1 ? h->ExpectedBytes : 1U) ||
                     *(ushort*)(p + 12) != (i == 0 ? 1 : i == 1 ? 3 : 2) || *(ushort*)(p + 14) != (i == 0 ? 1 : i == 1 ? 2 : 0))
                     h->BadOrder = true;
             }
-            if (*(ulong*)(h->Data + 256) != 0 || h->Data[272] != 255 || new ReadOnlySpan<byte>(h->Data + 512, (int)h->ExpectedBytes).IndexOfAnyExcept((byte)0) >= 0)
+            if (*(ulong*)(h->Data + 256) != 0 || h->Data[272] != 255 || new ReadOnlySpan<byte>(h->Data + h->DataOffset, (int)h->ExpectedBytes).IndexOfAnyExcept((byte)0) >= 0)
                 h->BadOrder = true;
             h->Sector = *(ulong*)(h->Data + 264);
             h->AvailableSeen = index;
@@ -1404,7 +1413,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
                 return 0;
             if (!h->ResetObserved || h->BusEnabled)
                 h->BadOrder = true;
-            if (h->Pool->AllocatedMask == 1)
+            if (h->Pool->AllocatedMask == h->DmaMask)
                 h->HeldAtResetFence = true;
         }
         if (h->IndexObserved)
@@ -1434,6 +1443,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
     private static byte Clock(void* c, ulong* value)
     {
         var h = (Hardware*)c;
+        h->ClockCalls++;
         if (!Enter(h) || h->ClockFailure)
             return 0;
         *value = h->Now;

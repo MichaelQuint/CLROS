@@ -1546,6 +1546,7 @@
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Status.cs" Link="Net\TcpSendWindow.Status.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Owner.cs" Link="Net\TcpSendWindow.Owner.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Close.cs" Link="Net\TcpSendWindow.Close.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Flight.cs" Link="Net\TcpSendWindow.Flight.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpTimeWaitTable.cs" Link="Net\TcpTimeWaitTable.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpTimeWaitTable.Status.cs" Link="Net\TcpTimeWaitTable.Status.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpTimeWaitTable.Record.cs" Link="Net\TcpTimeWaitTable.Record.cs" Condition="'$(EnableM07026Probe)' == 'true'" />

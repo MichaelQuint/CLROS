@@ -142,7 +142,8 @@ public static partial class QemuTranscripts
     }
 
     // Bootstrap performs34 single-sector MBR/GPT reads outside the mount. Mount
-    // bootstrap reads are single-sector too; later data requests contain1..4
+    // bootstrap reads are single-sector too; later data requests contain1..16
+    // sectors, already bounded by the explicitly selected observation consumer.
     // sectors. Mount.SectorReads counts submitted sectors, not request groups.
     private static void ValidateFullDiskFileEnd(Dictionary<string, ulong> end, NativeDiskReadObservations.Inspection device)
     {
@@ -156,7 +157,7 @@ public static partial class QemuTranscripts
             if (row.Kind == NativeDiskReadObservations.Kind.Submitted)
             {
                 ulong count = row.Bytes / 512;
-                Need(row.Owner == b.Owner && row.Epoch == b.Epoch && row.Bytes is >= 512 and <= 2048 && row.Bytes % 512 == 0 &&
+                Need(row.Owner == b.Owner && row.Epoch == b.Epoch && row.Bytes is >= 512 and <= 8192 && row.Bytes % 512 == 0 &&
                     sectors <= ulong.MaxValue - count, "disk_static_end_sectors");
                 sectors += count;
                 requests++;

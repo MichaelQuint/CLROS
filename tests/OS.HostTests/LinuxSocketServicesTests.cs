@@ -70,9 +70,9 @@ internal static unsafe partial class LinuxSocketServicesTests
         return (uint)fd;
     }
 
-    internal static TcpSendWindowTests.Fixture Connection()
+    internal static TcpSendWindowTests.Fixture Connection(int capacity = 8, ushort mss = 4, ushort window = 32)
     {
-        var f = new TcpSendWindowTests.Fixture(capacity: 8, receiveCapacity: 8);
+        var f = new TcpSendWindowTests.Fixture(capacity: capacity, receiveCapacity: 8, mss: mss, window: window);
         var io = f.Operations();
         HostCheck.Equal(Tx.Status.Success, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 1_000_000_000_000));
         HostCheck.Equal(Tx.Status.Success, Tx.ConfigureClose(f.Owner, 30_000_000_000));

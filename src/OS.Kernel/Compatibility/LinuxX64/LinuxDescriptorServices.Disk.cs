@@ -338,7 +338,7 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (outputBytes > DiskCompletionBytes || !Attached(state, owner) || !DiskRequestFor(state, token, out DiskRequest* r) || !worker.IsValid || worker.Value != r->Worker.Value || call.Number != r->Number)
             return new(DiskProgress.Rejected);
-        if (r->Borrowed && (!IsCurrent(state, r->OriginalFd) || unchecked((uint)call.Argument0) != r->OriginalFd.Number))
+        if (r->Borrowed && (!IsCurrentAfterAudit(state, r->OriginalFd) || unchecked((uint)call.Argument0) != r->OriginalFd.Number))
             return DrainDisk(state, r, BadDescriptor, true, Fs.Status.Cancelled);
 #if !NOSTDLIB_EFI || M16_027_PROBE
         RefreshDiskAvailability(state->Disk, r);
@@ -416,12 +416,16 @@ public static unsafe partial class LinuxDescriptorServices
         return DrainDisk(state, r, -4, true, Fs.Status.Cancelled);
     }
 
+    // Both callers have just audited the graph. StepDisk is entered only by
+    // PumpDiskOne; its disjoint NextPump update preserves fd/memory identity.
+    // Keep this token check before callbacks and retain public entry audits.
+    private static bool IsCurrentAfterAudit(State* state, Token token) => token.Owner == state && Find(state, token.Number) != null && state->Owner.Slots[token.Number].Generation == token.Generation;
     private static DiskResult StepDisk(State* state, DiskRequest* r)
     {
         DiskState* disk = state->Disk;
         if (r->Phase == DiskDraining)
             return DrainDisk(state, r, r->Error, !r->Worker.IsValid, r->Failure);
-        if (r->Borrowed && !IsCurrent(state, r->OriginalFd))
+        if (r->Borrowed && !IsCurrentAfterAudit(state, r->OriginalFd))
             return DrainDisk(state, r, BadDescriptor, false, Fs.Status.Cancelled);
 #if !NOSTDLIB_EFI || M16_027_PROBE
         RefreshDiskAvailability(disk, r);

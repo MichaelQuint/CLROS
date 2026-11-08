@@ -1,5 +1,30 @@
 # App Model
 
+## PR824 finite performance result
+
+[Step1792](../done/step1792.md) records the finite PR824 phase qualified at `6a700fe1`
+(runtime implementation `cdab7536`). Later documentation/metadata is separate.
+
+Complete original scalar/vector ranges still validate before accepted-prefix
+copy; user pointers are not retained. Legacy socket/epoll/vector originals and
+finite service/disk/browser/cancellation/cleanup consumers pass at their exact
+recorded sources. Readonly HTTP/Standalone Blazor and typed truncated-file fault
+behavior are qualified only within those finite profiles. Persistent logs/
+uploads, SQLite, restart recovery and sustained service remain unqualified.
+
+Earlier entries below retain their original source, pending work at that
+checkpoint, failures and qualification boundaries.
+
+## Implementation contracts and earlier evidence
+
+The PR824 performance candidate copies only the accepted bounded prefix of a
+socket send after validating its original ranges. It retains no user pointer:
+sendmsg first snapshots and validates all vectors, then copies the available
+prefix through descriptor scratch into TCP-owned retention. Invalid tails still
+fault before queue mutation; full/zero/error policy order remains explicit.
+The [phase contract](../work/http-performance-phase.md) requires final native,
+guest/body/browser/cleanup and matched HTTP evidence before release acceptance.
+
 PR812 qualified a finite Minimal API and standalone Blazor read workload served from FAT32. PR814 qualifies the RC3 version of that workload and its shutdown behavior. See [step1672](../done/step1672.md) for the released scope and the [candidate results](../work/rc3-whpx-qualification.md#candidate-results) for the current source.
 
 [Step1787](../done/step1787.md) models Hello exit_group cancelling a newly cloned

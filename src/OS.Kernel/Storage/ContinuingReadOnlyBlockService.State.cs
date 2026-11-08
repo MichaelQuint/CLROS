@@ -30,6 +30,8 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         public readonly ulong SectorCount => Capacity;
         /// <summary>Last retained request's data length, not readiness or copy authority.</summary>
         public readonly uint RequestBytes => RequestSectors * VirtioBlkDmaLayout.DataBytes;
+        /// <summary>Selected physical-request ceiling; not readiness or token authority.</summary>
+        public readonly uint MaximumTransferSectors => Queue.Layout.ReadSectorLimit;
         public readonly ulong Submitted => SubmittedCount;
         public readonly ulong Completed => CompletedCount;
         public readonly ulong Copied => CopiedCount;

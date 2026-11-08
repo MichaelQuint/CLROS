@@ -414,6 +414,8 @@ public static unsafe partial class EfiEntry
 #endif
                     ))
                     return false;
+                if ((Probes.EnableM16014Probe || Probes.EnableM10018FullProbe || Probes.EnableM10018TimingProbe) && !SocketNetwork.EnableBoundedFlight(&o->Network))
+                    return false;
 #if M16_014_PROBE
                 if (!LinuxText(state, "M07_033_BOUND quietUntil=") || !LinuxNumber(state, state->LinuxServiceSequence.QuietDeadline) ||
                     !LinuxText(state, " clock=") || !LinuxNumber(state, now) ||

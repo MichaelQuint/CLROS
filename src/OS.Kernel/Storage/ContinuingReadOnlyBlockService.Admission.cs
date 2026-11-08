@@ -19,5 +19,9 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         public VirtioBlkReadAccess Access;
         public ClockAccess Clock;
         public ObservationAccess Observation;
+        /// <summary>Explicit readonly three-page DMA/16-sector mode. False
+        /// retains the legacy one-page/four-sector contract. Pool mapping and
+        /// slot metadata must cover the complete selected allocation.</summary>
+        public bool UseLargeReadLayout;
     }
 }

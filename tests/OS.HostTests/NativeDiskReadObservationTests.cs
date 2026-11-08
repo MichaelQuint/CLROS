@@ -362,7 +362,7 @@ internal static partial class NativeDiskReadObservationTests
     private static string FullParentCounterEnd(Reads.Boundary b, ulong fsReads) => FormattableString.Invariant($"M16_025_END submitted={b.Submitted} completed={b.Completed} copied={b.Copied} bootstrapCompleted={b.BootstrapCompleted} bootstrapCopied={b.BootstrapCopied} fsReads={fsReads} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
     private static Fixture MultiVector(uint sectors, bool cancelled = false)
     {
-        byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();
+        byte[] image = Enumerable.Range(0, (int)Math.Max(8, sectors + 1) * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();
         string Head(uint kind, uint bytes) => FormattableString.Invariant($"M16_023_IO kind={kind} owner=4194312 epoch=1193046 generation=1 sector=1 sequence=1 bytes={bytes} available=1 consumed={(kind == 0 ? 0 : 1)} clock=100");
         List<string> rows = [Head(0, sectors * 512), Head(1, cancelled ? 0 : sectors * 512)];
         if (!cancelled)

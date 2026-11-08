@@ -156,7 +156,9 @@ public static partial class QemuTranscripts
     {
         // The original owner still supplies the independent emitted-layout join;
         // this report-only check cannot grant native authority from page counts.
-        Need(pages == (fullDirectoryCoverage ? 91UL : 90UL) && owner >= 4096 && owner <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_static_measured_layout");
+        // Full includes its retained file-chain maps and the three-page
+        // continuing-read DMA allocation; legacy callers retain one DMA page.
+        Need(pages == (fullDirectoryCoverage ? 93UL : 90UL) && owner >= 4096 && owner <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_static_measured_layout");
         DistinctExtents([(parent.UserRoot, 4096), (parent.KernelRoot, 4096), (parent.Dma, 32768), (pool, WebThreadPoolPages * 4096UL), (priorNicDma, 8192), (nicBar, 16384), (arena, pages * 4096), (diskBar, 16384), (owner, (ulong)sizeof(Block.State))], "disk_static_live_extents");
         Need(boundClock >= parent.PeerEnd && endClock >= boundClock && io.Count > 0 && io.All(row => row.Clock >= boundClock && row.Clock <= endClock), "disk_static_io_lifetime");
     }

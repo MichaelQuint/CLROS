@@ -305,9 +305,9 @@ internal static partial class NativeAotDiskStaticCaptureTests
         }
 
         Read();
-        Read(pages: 91, full: true);
-        Reject(() => Read(pages: 90, full: true));
-        Reject(() => Read(pages: 92, full: true));
+        Read(pages: 93, full: true);
+        foreach (ulong wrongPages in new[] { 90UL, 91UL, 92UL, 94UL })
+            Reject(() => Read(pages: wrongPages, full: true));
         foreach (ulong alias in new[]
         {
             nicBar,

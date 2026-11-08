@@ -468,7 +468,7 @@ public static partial class NativeAotDiskTimingPeer
                 return null;
             }
             return NativeDiskReadObservations.InspectDiagnosticTranscript(text, diskImage!,
-                options.DiskEvidence == DiskEvidenceMode.Trace, file!.Inode, file!.Bytes);
+                options.DiskEvidence == DiskEvidenceMode.Trace, file!.Inode, file!.Bytes, maximumReadSectors: 16);
         }
     }
 

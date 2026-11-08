@@ -6,6 +6,12 @@ public static partial class ToolCommand
     {
         try
         {
+            if (args is ["benchmark", "retained-serving", var retainedRoot, var retainedCloseout, var retainedImage, var retainedOutput, var retainedMode] && retainedMode is "--prepare" or "--run")
+            {
+                RetainedServingBenchmark.RunAsync(Repository.FindRoot(), retainedRoot, retainedCloseout, retainedImage,
+                    retainedOutput, retainedMode == "--prepare", Console.Out).GetAwaiter().GetResult();
+                return 0;
+            }
             if (args is ["linux", "sqlite-reference", var sqliteRecipe, var sqliteSource, var sqliteOutput])
                 return NativeAotSqliteContract.RunLinuxReferenceAsync(Repository.FindRoot(), sqliteRecipe,
                     sqliteSource, sqliteOutput, Console.Out).GetAwaiter().GetResult();
@@ -292,6 +298,11 @@ public static partial class ToolCommand
                 return NativeAotThreadingPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "runtime")
                 return NativeAotRuntimePayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args is ["efi", "source-inputs", .. var sourceSelectors])
+            {
+                EfiSourceInputs.RunAsync(Repository.FindRoot(), sourceSelectors, Console.Out).GetAwaiter().GetResult();
+                return 0;
+            }
             if (args.Length >= 2 && args[0] == "efi" && args[1] == "build")
                 return EfiBuild.Run(args[2..]);
             if (args.Length >= 2 && args[0] == "efi" && args[1] == "verify")

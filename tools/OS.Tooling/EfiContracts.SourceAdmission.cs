@@ -243,6 +243,7 @@ public static partial class EfiContracts
         ["..\\OS.Kernel\\Net\\TcpSendWindow.Status.cs"] = "reviewed_m07_retained_tcp_source_identity",
         ["..\\OS.Kernel\\Net\\TcpSendWindow.Owner.cs"] = "reviewed_m07_retained_tcp_source_identity",
         ["..\\OS.Kernel\\Net\\TcpSendWindow.Close.cs"] = "reviewed_m07_retained_tcp_source_identity",
+        ["..\\OS.Kernel\\Net\\TcpSendWindow.Flight.cs"] = "reviewed_m07_retained_tcp_source_identity",
         ["..\\OS.Kernel\\Net\\TcpTimeWaitTable.cs"] = "reviewed_m07_retained_tcp_source_identity",
         ["..\\OS.Kernel\\Net\\TcpTimeWaitTable.Status.cs"] = "reviewed_m07_retained_tcp_source_identity",
         ["..\\OS.Kernel\\Net\\TcpTimeWaitTable.Record.cs"] = "reviewed_m07_retained_tcp_source_identity",

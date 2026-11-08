@@ -128,13 +128,14 @@ internal static partial class ServiceSocketControlTests
             using var writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
             writer.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000"));
             writer.Flush();
-            uint time = 0;
+            ulong captureMicroseconds = 1_000_000;
             foreach (byte[] raw in NativeAotSocketIntegrationTests.Packets().Frames.Take(8))
                 Record(raw);
             void Record(byte[] raw)
             {
-                writer.Write(1U);
-                writer.Write(time++ * 1000);
+                writer.Write((uint)(captureMicroseconds / 1_000_000));
+                writer.Write((uint)(captureMicroseconds % 1_000_000));
+                captureMicroseconds += 1000;
                 writer.Write((uint)raw.Length);
                 writer.Write((uint)raw.Length);
                 writer.Write(raw);
@@ -142,7 +143,7 @@ internal static partial class ServiceSocketControlTests
             }
 
             using var frames = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
-            using var controls = new ServiceSocketControls();
+            using var controls = new ServiceSocketControls(boundedFlight: mode.StartsWith("flight", StringComparison.Ordinal));
             using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(mode == "close-missing" ? 1 : 7));
             using TcpClient backend = new(), guest = new();
             await backend.ConnectAsync(IPAddress.Loopback, frames.QemuOutPort);
@@ -192,7 +193,8 @@ internal static partial class ServiceSocketControlTests
                     int payloadBytes = BinaryPrimitives.ReadUInt16BigEndian(raw.AsSpan(16)) - 40;
                     if (flags == 2)
                     {
-                        var flow = new Flow(sequence, 10000 + (++syns * 1000), window == 0);
+                        uint server = (mode == "flight-high-isn" ? 0x94000000U : 10000U) + (++syns * 1000);
+                        var flow = new Flow(sequence, server, window == 0);
                         flows.Add(port, flow);
                         Reply(port, flow, flow.Server - 1, 0x12, ack: flow.Client + (mode == "syn-ack" ? 1U : 0U));
                         byte[] reset = ContinuingTcpScenario.Write(new(false, (ushort)port, flow.Client, 0, 4), 0x52550a000202);
@@ -233,6 +235,16 @@ internal static partial class ServiceSocketControlTests
                             Reply(port, current, current.Server, 0x18, Encoding.ASCII.GetString(current.Response, 0, mode == "probe" ? 2 : 1));
                             current.Probes = 1;
                         }
+                        else if (mode.StartsWith("flight", StringComparison.Ordinal) && !current.Unread)
+                        {
+                            Reply(port, current, current.Server, 0x18, Encoding.ASCII.GetString(current.Response, 0, 32));
+                            captureMicroseconds += 1_000_000;
+                            byte[] first = current.Response.AsSpan(0, 32).ToArray();
+                            if (mode == "flight-timeout")
+                                first[0] ^= 1;
+                            Reply(port, current, current.Server, 0x18, Encoding.ASCII.GetString(first));
+                            current.FlightStage = 1;
+                        }
                         else
                         {
                             Reply(port, current, current.Server, 0x18, Encoding.ASCII.GetString(current.Response));
@@ -244,6 +256,40 @@ internal static partial class ServiceSocketControlTests
                                 if (mode == "close-duplicate")
                                     File.AppendAllText(serial, row);
                             }
+                        }
+                    }
+                    else if (mode.StartsWith("flight", StringComparison.Ordinal) && !current.Zero && !current.Unread && current.FlightStage is > 0 and < 6)
+                    {
+                        if (current.FlightStage == 1 && ack == unchecked(current.Server + 32))
+                        {
+                            Reply(port, current, unchecked(current.Server + 32), 0x18, Encoding.ASCII.GetString(current.Response, 32, 32));
+                            Reply(port, current, unchecked(current.Server + 64), 0x18, Encoding.ASCII.GetString(current.Response, 64, 32));
+                            current.FlightStage = 2;
+                        }
+                        else if (current.FlightStage == 2 && ack == unchecked(current.Server + 32) && ++current.FlightDuplicates == 3)
+                        {
+                            Reply(port, current, unchecked(current.Server + 32), 0x18, Encoding.ASCII.GetString(current.Response, 32, 32));
+                            // Allow new-data copies while fast recovery is active.
+                            // The control must retain these future bytes behind its gap.
+                            for (int at = 96; at < current.Response.Length; at += 32)
+                                Reply(port, current, unchecked(current.Server + (uint)at), 0x18, Encoding.ASCII.GetString(current.Response, at, Math.Min(32, current.Response.Length - at)));
+                            current.FlightStage = 3;
+                        }
+                        else if (current.FlightStage == 3 && ack == unchecked(current.Server + 48))
+                            current.FlightStage = 4;
+                        else if (current.FlightStage == 4 && ack == unchecked(current.Server + 32))
+                        {
+                            captureMicroseconds += 2_000_000;
+                            byte[] tail = current.Response.AsSpan(48, 16).ToArray();
+                            if (mode == "flight-suffix")
+                                tail[0] ^= 1;
+                            Reply(port, current, unchecked(current.Server + 48), 0x18, Encoding.ASCII.GetString(tail));
+                            current.FlightStage = 5;
+                        }
+                        else if (current.FlightStage == 5 && ack == unchecked(current.Server + (uint)current.Response.Length))
+                        {
+                            Reply(port, current, unchecked(current.Server + (uint)current.Response.Length), 0x11);
+                            current.FlightStage = 6;
                         }
                     }
                     else if (current.Zero && current.Probes == 1 && window == 0 && ack == unchecked(current.Server + 1))

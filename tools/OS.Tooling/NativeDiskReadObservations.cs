@@ -19,14 +19,15 @@ public static partial class NativeDiskReadObservations
     /// cancelled completions need no copy; positive completions require a copy
     /// before another submit or terminal success. A ready-result cancellation
     /// without a distinct zero-byte completion is outside this finite contract.
-    /// Explicit allowMultiSector admits up to4 sectors: one Copied row followed
+    /// Explicit allowMultiSector admits the selected4- or16-sector ceiling:
+    /// one Copied row followed
     /// by ordered CopyChunk rows with the same request/copy sequence, clock and exact
     /// chunk indices. The physical copied counter advances only for a complete
     /// group. Every row keeps MaximumRowChars; legacy callers admit512 only.
     /// Return bounded immutable copies; malformed, incomplete, extra or divergent
     /// observations throw ToolFailure. No I/O or owner lifetime is introduced.</summary>
 
-    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull = false, bool allowMultiSector = false) => InspectCore(selectedRows, rawImage, boundary, diskStaticFull, null, allowMultiSector);
+    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull = false, bool allowMultiSector = false, uint maximumReadSectors = 4) => InspectCore(selectedRows, rawImage, boundary, diskStaticFull, null, allowMultiSector, maximumReadSectors: maximumReadSectors);
     /// <summary>Inspect the separate pending-reset terminal shape. Preserve all
     /// preceding real submit/completion/copy/image joins from a fully copied
     /// bootstrap; the last observation
@@ -39,8 +40,9 @@ public static partial class NativeDiskReadObservations
 
     public static Inspection InspectResetRetired(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, PendingResetRetirement retirement) => InspectCore(selectedRows, rawImage, boundary, false, retirement, false);
     private static Inspection InspectCore(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull, PendingResetRetirement? reset, bool allowMultiSector,
-        Representation representation = Representation.Original)
+        Representation representation = Representation.Original, uint maximumReadSectors = 4)
     {
+        Need(maximumReadSectors is 4 or 16, "read_layout");
         int rowCount = selectedRows?.Count ?? 0;
         Need(rowCount > 0 && rowCount <= (diskStaticFull ? DiskStaticCapturePolicy.DeviceRows : MaximumRows) && rawImage.Length >= 512 && rawImage.Length <= WebRootImageFixture.MaximumImageBytes && rawImage.Length % 512 == 0, "input");
         Need(boundary.Owner != 0 && boundary.Epoch != 0 && boundary.BootstrapCopied <= boundary.BootstrapCompleted && boundary.Submitted > boundary.BootstrapCompleted && (reset is null ? boundary.Completed == boundary.Submitted : boundary.Completed < ulong.MaxValue && boundary.Submitted == boundary.Completed + 1) && boundary.Completed >= boundary.BootstrapCompleted && boundary.Copied >= boundary.BootstrapCopied && boundary.Copied <= boundary.Completed && boundary.Copied - boundary.BootstrapCopied <= boundary.Completed - boundary.BootstrapCompleted && boundary.Submitted - boundary.BootstrapCompleted <= (ulong)rowCount, "boundary");
@@ -66,7 +68,7 @@ public static partial class NativeDiskReadObservations
             {
                 Need(stage == 0 && submitted != ulong.MaxValue, "submit_state");
                 submitted++;
-                Need(sequence == submitted && currentGeneration == submitted && submitted <= boundary.Submitted && (length == 512 || allowMultiSector && length is >= 1024 and <= 2048 && length % 512 == 0) && currentSector < (ulong)rawImage.Length / 512 && length / 512 <= (ulong)rawImage.Length / 512 - currentSector, "submit");
+                Need(sequence == submitted && currentGeneration == submitted && submitted <= boundary.Submitted && (length == 512 || allowMultiSector && length >= 1024 && length <= maximumReadSectors * 512 && length % 512 == 0) && currentSector < (ulong)rawImage.Length / 512 && length / 512 <= (ulong)rawImage.Length / 512 - currentSector, "submit");
                 requestBytes = (uint)length;
                 nextChunk = 0;
                 available = unchecked((ushort)(available + 1));
